@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8"/>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 440px;
+    height: 280px;
+    background: #080b12;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Bricolage Grotesque', sans-serif;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .glow {
+    position: absolute;
+    width: 340px; height: 340px;
+    background: radial-gradient(circle, rgba(180,80,255,0.16) 0%, transparent 65%);
+    top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    border-radius: 50%;
+    pointer-events: none;
+  }
+
+  .content {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .logo {
+    width: 56px; height: 56px;
+    object-fit: contain;
+    filter: drop-shadow(0 4px 16px rgba(255,100,30,0.3));
+  }
+
+  .wordmark {
+    font-size: 40px;
+    font-weight: 800;
+    letter-spacing: -1.8px;
+    color: #fff;
+    line-height: 1;
+  }
+
+  .wordmark span {
+    background: linear-gradient(135deg, #ff7c28 0%, #c94fff 55%, #4f8fff 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .sub {
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    color: rgba(255,255,255,0.42);
+    letter-spacing: -0.1px;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+  <div class="glow"></div>
+  <div class="content">
+    <img class="logo" src="D:/AI/UI copy chrome extension/icons/icon512.png" alt="UIDrop"/>
+    <div class="wordmark">UI<span>Drop</span></div>
+    <div class="sub">Read any site's design system. Build from it.</div>
+  </div>
+</body>
+</html>

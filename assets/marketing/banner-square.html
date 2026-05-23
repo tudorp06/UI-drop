@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8"/>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Inter:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1080px;
+    height: 1080px;
+    background: #080b12;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Bricolage Grotesque', sans-serif;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size: 80px 80px;
+  }
+
+  .glow-center {
+    position: absolute;
+    width: 800px; height: 800px;
+    background: radial-gradient(circle,
+      rgba(160,70,255,0.14) 0%,
+      rgba(60,120,255,0.08) 45%,
+      transparent 70%
+    );
+    top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    border-radius: 50%;
+  }
+
+  /* thin arc decoration */
+  .arc {
+    position: absolute;
+    width: 600px; height: 600px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.05);
+    top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+  }
+  .arc2 {
+    width: 750px; height: 750px;
+    border-color: rgba(255,255,255,0.03);
+  }
+
+  .content {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 36px;
+  }
+
+  .logo {
+    width: 160px; height: 160px;
+    object-fit: contain;
+    filter: drop-shadow(0 12px 48px rgba(255,110,30,0.28))
+            drop-shadow(0 4px 16px rgba(180,80,255,0.2));
+  }
+
+  .wordmark {
+    font-size: 112px;
+    font-weight: 800;
+    letter-spacing: -5px;
+    color: #fff;
+    line-height: 1;
+  }
+
+  .wordmark span {
+    background: linear-gradient(135deg, #ff7c28 0%, #c94fff 55%, #4f8fff 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .tagline {
+    font-family: 'Inter', sans-serif;
+    font-size: 26px;
+    font-weight: 400;
+    color: rgba(255,255,255,0.42);
+    letter-spacing: -0.4px;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+  <div class="grid"></div>
+  <div class="glow-center"></div>
+  <div class="arc"></div>
+  <div class="arc arc2"></div>
+
+  <div class="content">
+    <img class="logo" src="D:/AI/UI copy chrome extension/icons/icon512.png" alt="UIDrop"/>
+    <div class="wordmark">UI<span>Drop</span></div>
+    <div class="tagline">Read any site's design system. Build from it.</div>
+  </div>
+</body>
+</html>

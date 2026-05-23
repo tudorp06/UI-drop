@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8"/>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1500px;
+    height: 500px;
+    background: #07090f;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 100px;
+  }
+
+  .bg-grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size: 56px 56px;
+  }
+
+  .glow-l {
+    position: absolute;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(160,60,255,0.14) 0%, transparent 65%);
+    top: -250px; left: -100px; border-radius: 50%;
+  }
+  .glow-r {
+    position: absolute;
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(40,110,255,0.1) 0%, transparent 65%);
+    bottom: -220px; right: 50px; border-radius: 50%;
+  }
+
+  /* left */
+  .left {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    max-width: 520px;
+  }
+
+  .lockup {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .logo {
+    width: 56px; height: 56px;
+    object-fit: contain;
+    filter: drop-shadow(0 4px 16px rgba(255,100,30,0.28));
+  }
+
+  .wordmark {
+    font-family: 'Bricolage Grotesque', sans-serif;
+    font-size: 50px;
+    font-weight: 800;
+    letter-spacing: -2px;
+    color: #fff;
+    line-height: 1;
+  }
+  .wordmark span {
+    background: linear-gradient(135deg, #ff7c28 0%, #c94fff 55%, #4f8fff 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+
+  .tagline {
+    font-family: 'Inter', sans-serif;
+    font-size: 20px;
+    font-weight: 400;
+    color: rgba(255,255,255,0.5);
+    line-height: 1.55;
+  }
+  .tagline strong { color: rgba(255,255,255,0.85); font-weight: 500; }
+
+  /* right: mini flow diagram */
+  .flow {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0;
+  }
+
+  .flow-node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    width: 110px;
+  }
+
+  .flow-icon {
+    width: 54px; height: 54px;
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .flow-caption {
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.35);
+    text-align: center;
+    letter-spacing: 0.2px;
+  }
+
+  .flow-arrow {
+    width: 44px;
+    display: flex; align-items: center; justify-content: center;
+    padding-bottom: 28px;
+  }
+  .flow-arrow svg { opacity: 0.3; }
+
+  .ai-chips {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 120px;
+  }
+  .ai-chip {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.45);
+  }
+  .ai-chip img { width: 14px; height: 14px; border-radius: 3px; object-fit: contain; }
+</style>
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <div class="glow-l"></div>
+  <div class="glow-r"></div>
+
+  <div class="left">
+    <div class="lockup">
+      <img class="logo" src="D:/AI/UI copy chrome extension/icons/icon512.png"/>
+      <div class="wordmark">UI<span>Drop</span></div>
+    </div>
+    <p class="tagline">
+      See a site you love. Read its <strong>design system.</strong><br/>Build from it — brief dropped straight into your AI.
+    </p>
+  </div>
+
+  <div class="flow">
+    <!-- node: webpage -->
+    <div class="flow-node">
+      <div class="flow-icon" style="background:rgba(255,255,255,0.04);">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="1.4">
+          <rect x="3" y="3" width="18" height="18" rx="2"/>
+          <path d="M3 9h18M9 21V9"/>
+        </svg>
+      </div>
+      <div class="flow-caption">Any website</div>
+    </div>
+
+    <div class="flow-arrow">
+      <svg width="24" height="10" viewBox="0 0 24 10" fill="none"><path d="M0 5h20M16 1l4 4-4 4" stroke="white" stroke-width="1.2" stroke-linecap="round"/></svg>
+    </div>
+
+    <!-- node: uidrop -->
+    <div class="flow-node">
+      <div class="flow-icon" style="background:rgba(120,60,200,0.15); border-color:rgba(160,80,255,0.2);">
+        <img src="D:/AI/UI copy chrome extension/icons/icon512.png" style="width:30px;height:30px;object-fit:contain;"/>
+      </div>
+      <div class="flow-caption">UIDrop snap</div>
+    </div>
+
+    <div class="flow-arrow">
+      <svg width="24" height="10" viewBox="0 0 24 10" fill="none"><path d="M0 5h20M16 1l4 4-4 4" stroke="white" stroke-width="1.2" stroke-linecap="round"/></svg>
+    </div>
+
+    <!-- node: AI targets -->
+    <div class="ai-chips">
+      <div class="ai-chip">
+        <img src="D:/AI/UI copy chrome extension/icons/claude-logo-64.png"/>
+        Claude
+      </div>
+      <div class="ai-chip">
+        <img src="D:/AI/UI copy chrome extension/icons/cursor-logo-64.png"/>
+        Cursor
+      </div>
+      <div class="ai-chip" style="border-color:rgba(100,80,255,0.18); background:rgba(100,80,255,0.08);">
+        <div style="width:14px;height:14px;border-radius:3px;background:linear-gradient(135deg,#b1a7ff,#3941ff);flex-shrink:0;"></div>
+        Codex
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>
