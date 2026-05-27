@@ -232,15 +232,48 @@ function scrapeInteractiveColors(colorCounts, bump, bumpInteractive) {
       bump(s.color, weight);
       bump(s.borderTopColor, 1);
 
-      // Record SATURATED background colors of interactive elements separately.
-      // These are the strongest signal for "brand color" we can find on a page,
-      // because by definition they're filled surfaces a user is meant to click.
-      // Tiny elements skipped (icons, dots) — we want real button-sized areas.
+      // Record SATURATED colors of interactive elements separately.
+      // These are the strongest signal for "brand color" we can find on a page.
+      //
+      // Primary signal: filled button backgrounds (strongest — user clicks a colored surface).
+      // Secondary signal: gradient backgrounds on interactive elements.
+      //   Many modern sites (Chronos, Stripe hero, etc.) use gradients as their
+      //   primary brand surface — on CTAs, hero text, charts, logos. A gradient on
+      //   a button is MORE "primary" than most flat colors because it's a deliberate
+      //   brand moment. Extract its stops and promote them as interactive colors.
+      // Tertiary signal: saturated TEXT color or BORDER color on interactive elements.
       if (r.width >= 60 && r.height >= 28) {
         const bgHex = colorOrNull(s.backgroundColor);
         if (bgHex && isHexSaturated(bgHex, 0.30)) {
           bumpInteractive(bgHex, weight);
         }
+
+        // Gradient backgrounds on interactive elements — extract stops and promote.
+        // A gradient CTA is an even stronger brand signal than a flat-fill CTA.
+        const bgImg = s.backgroundImage;
+        if (bgImg && bgImg.includes('gradient(')) {
+          const gStops = extractGradientStops(bgImg);
+          gStops.forEach(stopHex => {
+            if (isHexSaturated(stopHex, 0.25)) {
+              bumpInteractive(stopHex, weight);
+            }
+          });
+        }
+
+        // Text color on interactive elements — catches brand-colored button labels,
+        // active nav items, and text-style CTAs (e.g. Yahoo's purple "Subscribe" text).
+        // Weight reduced (÷2) because text is a weaker brand signal than filled bg.
+        const textHex = colorOrNull(s.color);
+        if (textHex && isHexSaturated(textHex, 0.35)) {
+          bumpInteractive(textHex, Math.max(1, Math.floor(weight / 2)));
+        }
+      }
+      // Border accent on interactive elements — catches active nav indicators
+      // (e.g. Render's purple left-border on active sidebar item).
+      // Only borderLeft and borderBottom — common positions for active state indicators.
+      const borderHex = colorOrNull(s.borderLeftColor) || colorOrNull(s.borderBottomColor);
+      if (borderHex && isHexSaturated(borderHex, 0.35)) {
+        bumpInteractive(borderHex, 1);
       }
     });
   });
@@ -315,10 +348,32 @@ function scrapeShadowScale() {
     const compressed = compressShadow(sh);
     counts.set(compressed, (counts.get(compressed) || 0) + 1);
   });
-  return [...counts.entries()]
-    .sort((a, b) => b[1] - a[1])
+  // Sort shadows by visual weight (low → high), not frequency.
+  // Visual weight = blur-radius × opacity. This ensures "subtle" is actually
+  // the lightest shadow and "strong" is the heaviest, regardless of which
+  // appears most often in the DOM.
+  return [...counts.keys()]
+    .map(s => ({ shadow: s, weight: shadowVisualWeight(s) }))
+    .sort((a, b) => a.weight - b.weight)
     .slice(0, 3)
-    .map(([s]) => s);
+    .map(s => s.shadow);
+}
+
+// Estimate visual weight of a box-shadow string.
+// Parses "rgba(r,g,b,a) Xpx Ypx Zpx Wpx" and returns blur × opacity.
+// Higher = visually stronger shadow.
+function shadowVisualWeight(shadow) {
+  const alphaMatch = shadow.match(/[\d.]+\s*\)/g);
+  let alpha = 1;
+  if (alphaMatch) {
+    const last = parseFloat(alphaMatch[alphaMatch.length - 1]);
+    if (last >= 0 && last <= 1) alpha = last;
+  }
+  // Extract numeric px values after the color — [offsetX, offsetY, blur, spread]
+  const pxValues = shadow.replace(/rgba?\([^)]+\)/g, '').match(/[\d.]+/g) || [];
+  const blur = parseFloat(pxValues[2]) || 0;
+  const spread = parseFloat(pxValues[3]) || 0;
+  return (blur + spread) * alpha;
 }
 
 // ── Dominant neutral border color used as page-wide hairlines ──
@@ -371,7 +426,8 @@ function scrapeIconStrokeWidth() {
 // excludes gradient definitions that exist in CSS but nothing on the page uses.
 function scrapeUsedGradients() {
   const stops = [];
-  const seen = new Set();
+  const seenCSS = new Set();       // dedup by raw CSS string (exact same gradient)
+  const seenStops = new Set();     // dedup by parsed stop colors (same colors, different syntax)
   let sampled = 0;
   const all = document.querySelectorAll('*');
   for (let i = 0; i < all.length && sampled < 400 && stops.length < 4; i++) {
@@ -382,12 +438,17 @@ function scrapeUsedGradients() {
 
     const bg = getComputedStyle(el).backgroundImage;
     if (!bg || !bg.includes('gradient(')) continue;
-    if (seen.has(bg)) continue;
-    seen.add(bg);
+    if (seenCSS.has(bg)) continue;
+    seenCSS.add(bg);
     sampled++;
 
     const parsed = extractGradientStops(bg);
     if (parsed.length >= 2 && gradientHasMeaningfulSpread(parsed)) {
+      // Second dedup layer: two different CSS gradient strings can produce
+      // the same stop colors (vendor prefix differences, angle differences).
+      const stopKey = parsed.slice(0, 3).join(',');
+      if (seenStops.has(stopKey)) continue;
+      seenStops.add(stopKey);
       stops.push(parsed.slice(0, 3));
     }
   }
@@ -514,7 +575,23 @@ function scrapePreferredButton() {
     .filter(c => c.sat > 0.30)
     .sort((a, b) => (b.sat * b.area) - (a.sat * a.area));
 
-  const pick = ranked[0]?.el || candidates[0];
+  // Second choice: a button with a SATURATED TEXT color (brand-colored label).
+  // Sites like Yahoo use purple text on neutral bg for their primary CTA.
+  // These rank below filled-bg buttons but above the DOM-order fallback.
+  let pick = ranked[0]?.el;
+  if (!pick) {
+    const textRanked = candidates
+      .map(el => {
+        const s = getComputedStyle(el);
+        const textHex = colorOrNull(s.color);
+        const sat = textHex && /^#[0-9a-fA-F]{6}$/.test(textHex) ? saturationOfHex(textHex) : 0;
+        return { el, sat, area: el.offsetWidth * el.offsetHeight };
+      })
+      .filter(c => c.sat > 0.35)
+      .sort((a, b) => (b.sat * b.area) - (a.sat * a.area));
+    pick = textRanked[0]?.el;
+  }
+  if (!pick) pick = candidates[0];
   return readComponentStyles(pick);
 }
 

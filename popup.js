@@ -43,9 +43,24 @@ async function performSnap() {
                  draggable="true"
                  style="width:100%;height:100%;object-fit:cover;display:block;cursor:grab;" />
         `;
+        // Pre-convert screenshot to a File so drag-and-drop transfers real
+        // image data, not just a data URL string. Claude/Cursor/ChatGPT editors
+        // need actual file data in the drag transfer to accept image drops.
+        let screenshotFile = null;
+        try {
+            const res = await fetch(screenshotResponse.screenshot);
+            const blob = await res.blob();
+            screenshotFile = new File([blob], 'uidrop-screenshot.png', { type: 'image/png' });
+        } catch (err) {
+            console.warn('UIDrop: could not pre-convert screenshot for drag', err);
+        }
         screenshotArea.querySelector('img').addEventListener('dragstart', e => {
-            e.dataTransfer.setData('text/uri-list', screenshotResponse.screenshot);
-            e.dataTransfer.setData('text/plain', screenshotResponse.screenshot);
+            if (screenshotFile) {
+                e.dataTransfer.items.add(screenshotFile);
+                e.dataTransfer.effectAllowed = 'copy';
+            } else {
+                e.dataTransfer.setData('text/uri-list', screenshotResponse.screenshot);
+            }
         });
         dragHint?.classList.remove('hidden');
 
@@ -354,7 +369,7 @@ function buildFinalPrompt(schema) {
         : 'This page has no chromatic primary — it is a monochrome design. The brand language lives in surface contrast and typography.';
 
     const parts = [
-        `This is a design system extracted from a webpage I find really nice. Build a UI in this style. Match these tokens exactly:`,
+        `This is a design system extracted from a webpage I find inspiring. I want to build my own site/app UI inspired by this design pattern. Do not copy or replicate brand assets, logos, or identity — use these tokens as a foundation to create something original for me. Match the design language, not the brand:`,
         ``,
         `Vibe: ${schema.vibe}`,
         ``,
@@ -402,6 +417,8 @@ function buildFinalPrompt(schema) {
     parts.push(
         ``,
         `Attach the screenshot from this page as a visual reference — match its hierarchy, density, and overall feel, not just the raw values. Where this brief leaves something underspecified (hover states, focus rings, dark-mode variants), infer sensible defaults consistent with the vibe and palette above.`,
+        ``,
+        `This is for my personal project — I'm drawing inspiration from this design pattern to build my own UI. Create something original that follows these design principles without copying the source brand.`,
         ``,
         `— captured by UIDrop`
     );
@@ -553,29 +570,11 @@ btnCopy.addEventListener('click', async () => {
 
 async function copyTextAndImage(btn, successLabel) {
     try {
-        const screenshot = await getCurrentScreenshot();
-        if (screenshot) {
-            const res = await fetch(screenshot);
-            const imgBlob = await res.blob();
-            const textBlob = new Blob([finalPrompt], { type: 'text/plain' });
-            await navigator.clipboard.write([
-                new ClipboardItem({
-                    'image/png': imgBlob,
-                    'text/plain': textBlob
-                })
-            ]);
-        } else {
-            await navigator.clipboard.writeText(finalPrompt);
-        }
+        await navigator.clipboard.writeText(finalPrompt);
         flashCopied(btn, successLabel);
     } catch (e) {
-        console.warn('UIDrop: rich clipboard failed, falling back to text', e);
-        try {
-            await navigator.clipboard.writeText(finalPrompt);
-            flashCopied(btn, successLabel);
-        } catch (e2) {
-            flashCopied(btn, 'Failed');
-        }
+        console.warn('UIDrop: clipboard write failed', e);
+        flashCopied(btn, 'Failed');
     }
 }
 

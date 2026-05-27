@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "UIDrop",
   "version": "1.0.1",
-  "description": "Snap any site's design system and drop it straight into Claude, Cursor or ChatGPT — instant, private, free.",
+  "description": "Extract any website's colors, fonts, spacing & components in one click. Send the design brief to Claude, Cursor or ChatGPT instantly.",
 
   "icons": {
     "16":  "icons/icon16.png",

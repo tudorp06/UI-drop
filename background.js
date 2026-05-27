@@ -24,7 +24,7 @@ async function openAndInject({ target, url, prompt, screenshot }) {
   const tab = await chrome.tabs.create({ url });
 
   await waitForTabComplete(tab.id);
-  await new Promise(r => setTimeout(r, 1800));
+  await new Promise(r => setTimeout(r, 2500));
 
   try {
     const [result] = await chrome.scripting.executeScript({
@@ -121,19 +121,27 @@ async function injectPromptIntoEditor(text, imageDataUrl, target) {
       const blob = await res.blob();
       const file = new File([blob], 'uidrop-screenshot.png', { type: 'image/png' });
 
-      // Primary: dispatch a paste ClipboardEvent carrying the image into the editor.
-      // This is what modern AI editors (Claude, ChatGPT) handle natively.
+      // Try pasting the image up to 3 times with delays.
+      // Claude/ChatGPT editors sometimes need extra time to accept image pastes
+      // even after the text editor is ready.
       let imageInserted = false;
-      try {
-        const dt = new DataTransfer();
-        dt.items.add(file);
-        editor.focus();
-        editor.dispatchEvent(new ClipboardEvent('paste', {
-          bubbles: true, cancelable: true, clipboardData: dt
-        }));
-        imageInserted = true;
-      } catch (e) {
-        console.warn('[UIDrop] paste-event image attach failed', e);
+      for (let attempt = 0; attempt < 3 && !imageInserted; attempt++) {
+        if (attempt > 0) await new Promise(r => setTimeout(r, 800));
+        try {
+          const dt = new DataTransfer();
+          dt.items.add(file);
+          editor.focus();
+          const ev = new ClipboardEvent('paste', {
+            bubbles: true, cancelable: true, clipboardData: dt
+          });
+          const accepted = editor.dispatchEvent(ev);
+          // Check if an image preview appeared (Claude adds img or figure elements)
+          await new Promise(r => setTimeout(r, 300));
+          const hasImage = editor.closest('form')?.querySelector('img[src^="blob:"], img[src^="data:"], [data-testid*="image"], [data-testid*="file"]');
+          if (hasImage) imageInserted = true;
+        } catch (e) {
+          console.warn(`[UIDrop] paste-event image attempt ${attempt + 1} failed`, e);
+        }
       }
 
       // Fallback: find a visible file input and set files on it.
