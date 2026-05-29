@@ -126,12 +126,12 @@ async function injectPromptIntoEditor(text, imageDataUrl, target) {
     try {
       const res = await fetch(imageDataUrl);
       const blob = await res.blob();
-      // Use blob.type so JPEG thumbnails from the library aren't mislabelled as PNG
       const file = new File([blob], 'uidrop-screenshot', { type: blob.type || 'image/png' });
 
-      // Single paste attempt only — retrying causes duplicate images because the
-      // DOM verification selector misses Claude's actual post-paste elements, so
-      // imageInserted stays false and every retry pastes the image again.
+      // Single paste only — no DOM verification, no fallback.
+      // The hasImage check used editor.closest('form') but Claude renders
+      // attachment previews outside the form, so it always returned null,
+      // causing the file-input fallback to fire as well → two images sent.
       const dt = new DataTransfer();
       dt.items.add(file);
       editor.focus();
@@ -139,23 +139,8 @@ async function injectPromptIntoEditor(text, imageDataUrl, target) {
         bubbles: true, cancelable: true, clipboardData: dt
       }));
 
-      // Wait for Claude/ChatGPT to process the paste and update the DOM.
-      await new Promise(r => setTimeout(r, 900));
-      const hasImage = editor.closest('form')?.querySelector(
-        'img[src^="blob:"], img[src^="data:"], [data-testid*="image"], [data-testid*="file"], [data-testid*="attachment"]'
-      );
-
-      // Only use the file-input fallback if the paste genuinely didn't register.
-      if (!hasImage) {
-        const fileInputs = Array.from(document.querySelectorAll('input[type="file"]'));
-        const imageInput = fileInputs.find(i => !i.accept || /image|\*/.test(i.accept)) || fileInputs[0];
-        if (imageInput) {
-          const dt2 = new DataTransfer();
-          dt2.items.add(file);
-          imageInput.files = dt2.files;
-          imageInput.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-      }
+      // Give Claude time to process the paste before the script exits.
+      await new Promise(r => setTimeout(r, 1200));
     } catch (e) {
       console.warn('[UIDrop] image attach failed', e);
     }
