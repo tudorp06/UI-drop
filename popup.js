@@ -10,8 +10,41 @@ const btnCursor      = document.getElementById('btnCursor');
 const btnChatGPT     = document.getElementById('btnChatGPT');
 const btnCopy        = document.getElementById('btnCopy');
 const dragHint       = document.getElementById('dragHint');
+const btnLibrary     = document.getElementById('btnLibrary');
 
 let finalPrompt = '';
+
+// ── ExtensionPay ──────────────────────────────────────────────
+const extpay = ExtPay('uidrop'); // ← same app name as background.js
+
+// ── Open the Snap Library — gated behind payment ──
+btnLibrary.addEventListener('click', async () => {
+    let user;
+    try { user = await extpay.getUser(); } catch (e) { user = { paid: false }; }
+
+    if (user.paid) {
+        chrome.tabs.create({ url: chrome.runtime.getURL('library.html') });
+    } else {
+        extpay.openPaymentPage();
+    }
+});
+
+// ── Reflect payment state on the library button ──────────────
+(async () => {
+    let user;
+    try { user = await extpay.getUser(); } catch (e) { user = { paid: false }; }
+    if (!user.paid) {
+        const badge = btnLibrary.querySelector('.library-badge');
+        if (badge) {
+            badge.innerHTML = `
+                <svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                Unlock`;
+        }
+        btnLibrary.classList.add('library-btn-locked');
+    }
+})();
 
 (async function init() {
     document.getElementById('setupView')?.classList.add('hidden');
@@ -76,6 +109,9 @@ async function performSnap() {
 
         finalPrompt = buildFinalPrompt(schema);
 
+        // Save to persistent history (non-blocking)
+        saveSnapToHistory(schema, tokens, screenshotResponse.screenshot).catch(() => {});
+
         chrome.storage.session.set({
             lastSnap: {
                 screenshot: screenshotResponse.screenshot,
@@ -107,7 +143,8 @@ function buildDesignSystem(tokens) {
         tokens.isDark,
         tokens.components,
         tokens.interactiveColors || [],
-        tokens.colorsWithWeights || []
+        tokens.colorsWithWeights || [],
+        tokens.pageBg || null
     );
     const fonts   = tokens.fonts   || [];
     const sizes   = tokens.fontSizes || [];
@@ -132,13 +169,25 @@ function buildDesignSystem(tokens) {
         radius:          deriveRadius(c),
         spacingScale:    deriveSpacing(c),
         buttonStyle:     formatButton(c.button, palette),
-        cardStyle:       formatCard(c.card, palette),
-        inputStyle:      formatInput(c.input, palette),
+        cardStyle:       formatCard(c.card, palette, tokens.isDark),
+        inputStyle:      formatInput(c.input, palette, tokens.isDark),
         linkStyle:       formatLink(c.link),
-        shadowScale:     tokens.shadowScale || [],
-        borderColor:     tokens.borderColor || null,
-        iconStroke:      tokens.iconStroke || null,
-        gradients:       (tokens.gradients || []).slice(0, 2)
+        shadowScale:          tokens.shadowScale || [],
+        borderColor:          tokens.borderColor || null,
+        iconStroke:           tokens.iconStroke || null,
+        gradients:            (tokens.gradients || []).slice(0, 2),
+        cssVars:              tokens.cssVars             || null,
+        typographyHierarchy:  tokens.typographyHierarchy || null,
+        motion:               tokens.motion              || null,
+        breakpoints:          tokens.breakpoints         || [],
+        layoutGrid:            tokens.layoutGrid           || null,
+        spacingScale:          tokens.spacingScale         || null,
+        focusStyles:           tokens.focusStyles          || null,
+        hoverBehaviour:        tokens.hoverBehaviour       || null,
+        pageStructure:         tokens.pageStructure        || null,
+        zIndexScale:           tokens.zIndexScale          || null,
+        activeStates:          tokens.activeStates         || null,
+        responsiveComponents:  tokens.responsiveComponents || null
     };
 }
 
@@ -165,7 +214,7 @@ function formatLink(l) {
 // 2. Accent = saturated color with largest hue delta from primary.
 // 3. Surface/elevated/text/muted from neutral high-frequency colors.
 // 4. Force surface ≠ elevated by synthesizing a shift when needed.
-function derivePalette(colors, isDark, components, interactiveColors, colorsWithWeights) {
+function derivePalette(colors, isDark, components, interactiveColors, colorsWithWeights, pageBg) {
     const hexes = (colors || []).filter(isHex).map(h => h.toUpperCase());
     if (!hexes.length) return defaultPalette(isDark);
 
@@ -225,32 +274,52 @@ function derivePalette(colors, isDark, components, interactiveColors, colorsWith
     })();
 
     // ── Surface, elevated, text — must be NEUTRAL (low saturation) ──
-    // The most-USED neutral color in the right luminance range wins.
-    // Using frequency-ordered `hexes` (not luminance-sorted) means we pick
-    // the actual dominant background, not the absolute lightest/darkest pixel
-    // that might be a single nav bar or shadow edge.
     const isNeutral = h => saturation(h) < 0.18;
-    const lightNeutrals = hexes.filter(h => isNeutral(h) && luminance(h) > 0.82);
-    const darkNeutrals  = hexes.filter(h => isNeutral(h) && luminance(h) < 0.20);
-    const midNeutrals   = hexes.filter(h => isNeutral(h) && luminance(h) >= 0.25 && luminance(h) <= 0.75);
+    // lightNeutrals threshold lowered from 0.82 → 0.65 so tinted page backgrounds
+    // (dusty rose, lavender, cream) qualify as surface candidates.
+    const lightNeutrals     = hexes.filter(h => isNeutral(h) && luminance(h) > 0.65);
+    // veryLightNeutrals (> 0.82) reserved for text role in dark mode — avoids mid-grays.
+    const veryLightNeutrals = hexes.filter(h => isNeutral(h) && luminance(h) > 0.82);
+    const darkNeutrals      = hexes.filter(h => isNeutral(h) && luminance(h) < 0.20);
+    const midNeutrals       = hexes.filter(h => isNeutral(h) && luminance(h) >= 0.25 && luminance(h) <= 0.75);
 
     let surface, elevated, text;
     if (isDark) {
-        surface = darkNeutrals[0] || darkest;
+        surface  = darkNeutrals[0] || darkest;
         elevated = darkNeutrals.find(c => c !== surface && luminance(c) > luminance(surface) + 0.03);
         if (!elevated && components?.card?.bg && components.card.bg !== surface && isNeutral(components.card.bg)) {
             elevated = components.card.bg;
         }
         if (!elevated || elevated === surface) elevated = shift(surface, +0.08);
-        text = lightNeutrals[0] || lightest;
+        // In dark mode, text must be light — guard against oxide-style failure where
+        // lightest colour in the pool is still dark (no white elements found).
+        text = veryLightNeutrals[0] || lightest;
+        if (luminance(text) < 0.50) text = '#FFFFFF';
+        // Ensure elevated is actually LIGHTER than surface (a3icp: #000 elevated, #080808 surface)
+        if (luminance(elevated) <= luminance(surface)) elevated = shift(surface, +0.08);
     } else {
-        surface = lightNeutrals[0] || lightest;
+        surface  = lightNeutrals[0] || lightest;
         elevated = lightNeutrals.find(c => c !== surface && luminance(c) < luminance(surface) - 0.01);
         if (!elevated && components?.card?.bg && components.card.bg !== surface && isNeutral(components.card.bg)) {
             elevated = components.card.bg;
         }
         if (!elevated || elevated === surface) elevated = shift(surface, -0.05);
         text = darkNeutrals[0] || darkest;
+        // Ensure elevated is actually DARKER than surface in light mode
+        if (luminance(elevated) >= luminance(surface)) elevated = shift(surface, -0.05);
+    }
+
+    // ── Surface anchoring: if we know the real page background (html/body), use it. ──
+    // Frequency ordering can place white card/panel elements before the actual tinted
+    // page bg (kriss dusty-rose, lusion lavender, pika cream, family cream).
+    // The actual html/body bg IS the surface by definition — anchor to it.
+    if (pageBg && isHex(pageBg)) {
+        const pgHex = pageBg.toUpperCase();
+        if (isNeutral(pgHex)) {
+            const pgLum = luminance(pgHex);
+            if (!isDark && pgLum > 0.40) surface = pgHex;
+            if (isDark  && pgLum < 0.50) surface = pgHex;
+        }
     }
 
     // ── Muted: must be neutral AND mid-luminance ──
@@ -287,7 +356,7 @@ function deriveVibe(palette, tokens) {
     }
 
     const radii = [tokens.components?.button?.radius, tokens.components?.card?.radius]
-        .map(r => parseInt(r) || 0)
+        .map(r => { const n = parseInt(r) || 0; return n >= 100 ? 50 : n; }) // clamp pill values
         .filter(Boolean);
     const maxRadius = radii.length ? Math.max(...radii) : 8;
 
@@ -300,11 +369,19 @@ function deriveVibe(palette, tokens) {
 }
 
 // ── Radius / spacing summaries ──
+// 999px / 9999px are the "pill" trick — display as "pill" not a literal number
+function humanRadius(r) {
+    if (!r) return null;
+    const px = parseFloat(r);
+    if (px >= 100) return 'pill';
+    return r;
+}
+
 function deriveRadius(c) {
     const r = [
-        c.button?.radius && `${c.button.radius} buttons`,
-        c.card?.radius   && `${c.card.radius} cards`,
-        c.input?.radius  && `${c.input.radius} inputs`
+        c.button?.radius && `${humanRadius(c.button.radius)} buttons`,
+        c.card?.radius   && `${humanRadius(c.card.radius)} cards`,
+        c.input?.radius  && `${humanRadius(c.input.radius)} inputs`
     ].filter(Boolean);
     return r.length ? r.join(', ') : '8px';
 }
@@ -319,14 +396,29 @@ function deriveSpacing(c) {
         });
     });
     const scale = [...values].sort((a, b) => a - b);
-    return scale.length ? scale.join(' / ') : '4 / 8 / 16 / 24 / 32';
+    if (!scale.length) return '4 / 8 / 16 / 24 / 32';
+
+    // Extend a sparse scale with geometric neighbours so it always reads as
+    // a rhythm rather than a single arbitrary value.
+    if (scale.length === 1) {
+        const base = scale[0];
+        const half = Math.round(base / 2);
+        const dbl  = Math.round(base * 2);
+        const candidates = [half > 0 ? half : null, base, dbl <= 64 ? dbl : null]
+            .filter(Boolean);
+        return [...new Set(candidates)].sort((a, b) => a - b).join(' / ');
+    }
+    return scale.join(' / ');
 }
 
 // ── Component formatters ──
 function formatButton(b, palette) {
-    if (!b) return `${palette.primary} bg, white text, 8px radius, 10px 16px padding, 600 weight`;
+    if (!b) return `${palette.primary || '#000000'} bg, white text, 8px radius, 10px 16px padding, 600 weight`;
     const parts = [];
-    if (b.bg)         parts.push(`${b.bg} bg`);
+    // If the captured button has a transparent bg, fall back to palette.primary —
+    // ghost/outlined buttons ARE the primary CTA on some sites (liveblocks, ssense).
+    if (b.bg)               parts.push(`${b.bg} bg`);
+    else if (palette.primary) parts.push(`${palette.primary} bg`);
     if (b.color)      parts.push(`${b.color} text`);
     if (b.radius)     parts.push(`${b.radius} radius`);
     if (b.padding)    parts.push(`${b.padding} padding`);
@@ -334,8 +426,10 @@ function formatButton(b, palette) {
     return parts.join(', ') || 'default button';
 }
 
-function formatCard(c, palette) {
-    if (!c) return `white bg, 1px subtle border, 12px radius, 24px padding`;
+function formatCard(c, palette, isDark) {
+    if (!c) return isDark
+        ? `dark surface bg, subtle border, 12px radius, 24px padding`
+        : `white bg, 1px subtle border, 12px radius, 24px padding`;
     const parts = [];
     if (c.bg)      parts.push(`${c.bg} bg`);
     if (c.border)  parts.push(c.border);
@@ -345,8 +439,10 @@ function formatCard(c, palette) {
     return parts.join(', ') || 'default card';
 }
 
-function formatInput(i, palette) {
-    if (!i) return `white bg, 1px subtle border, 6px radius, 8px 12px padding`;
+function formatInput(i, palette, isDark) {
+    if (!i) return isDark
+        ? `dark surface bg, 1px subtle border, 6px radius, 8px 12px padding`
+        : `white bg, 1px subtle border, 6px radius, 8px 12px padding`;
     const parts = [];
     if (i.bg)      parts.push(`${i.bg} bg`);
     if (i.border)  parts.push(i.border);
@@ -376,21 +472,59 @@ function buildFinalPrompt(schema) {
         `Palette: ${palette}`
     ];
     if (monochromeNote) parts.push(``, monochromeNote);
-    parts.push(
-        ``,
-        `Typography:`,
-        `• Heading — ${schema.headingFont}`,
-        `• Body — ${schema.bodyFont}`,
-        `• Type scale — ${schema.typeScale}`,
-        ``,
-        `Tokens:`,
-        `• Radius — ${schema.radius}`,
-        `• Spacing scale — ${schema.spacingScale}`
-    );
+
+    // ── Typography ─────────────────────────────────────────────
+    parts.push(``, `Typography:`);
+    const th = schema.typographyHierarchy;
+    if (th && Object.keys(th).length) {
+        // Per-level detail when available — much richer than a single heading/body line
+        const roleLabel = { h1:'H1', h2:'H2', h3:'H3', h4:'H4', body:'Body', code:'Code', caption:'Caption' };
+        Object.entries(th).forEach(([role, t]) => {
+            let line = `• ${roleLabel[role] || role} — ${t.family} ${t.size} ${t.weight}`;
+            if (t.lineHeight)    line += `, ${t.lineHeight} line-height`;
+            if (t.letterSpacing) line += `, ${t.letterSpacing} tracking`;
+            parts.push(line);
+        });
+        parts.push(`• Type scale — ${schema.typeScale}`);
+    } else {
+        // Fallback to the single-level summary
+        parts.push(
+            `• Heading — ${schema.headingFont}`,
+            `• Body — ${schema.bodyFont}`,
+            `• Type scale — ${schema.typeScale}`
+        );
+    }
+
+    // ── Design tokens ──────────────────────────────────────────
+    parts.push(``, `Tokens:`);
+    parts.push(`• Radius — ${schema.radius}`);
+
+    // Use CSS-var radius scale if richer than the component-derived summary
+    if (schema.cssVars?.radii && Object.keys(schema.cssVars.radii).length) {
+        const rEntries = Object.entries(schema.cssVars.radii).slice(0, 8);
+        parts.push(`• Radius tokens — ${rEntries.map(([k, v]) => `${k.replace('--', '')}: ${v}`).join(', ')}`);
+    }
+
+    parts.push(`• Spacing scale — ${schema.spacingScale}`);
+
+    // CSS-var spacing gives named steps (--spacing-4, --spacing-8 etc.)
+    if (schema.cssVars?.spacing && Object.keys(schema.cssVars.spacing).length) {
+        const sEntries = Object.entries(schema.cssVars.spacing).slice(0, 10);
+        parts.push(`• Spacing tokens — ${sEntries.map(([k, v]) => `${k.replace('--', '')}: ${v}`).join(', ')}`);
+    }
 
     if (schema.borderColor) parts.push(`• Border color — ${schema.borderColor}`);
     if (schema.iconStroke)  parts.push(`• Icons — ${schema.iconStroke}`);
 
+    // ── Named color tokens from CSS custom properties ──────────
+    if (schema.cssVars?.colors && Object.keys(schema.cssVars.colors).length) {
+        parts.push(``, `Named color tokens (from CSS custom properties):`);
+        Object.entries(schema.cssVars.colors).slice(0, 24).forEach(([k, v]) => {
+            parts.push(`• ${k}: ${v}`);
+        });
+    }
+
+    // ── Elevation ──────────────────────────────────────────────
     if (Array.isArray(schema.shadowScale) && schema.shadowScale.length) {
         parts.push('', 'Elevation (shadow scale, low → high):');
         schema.shadowScale.forEach((s, i) => {
@@ -398,13 +532,37 @@ function buildFinalPrompt(schema) {
             parts.push(`• ${tier} — ${s}`);
         });
     }
+    if (schema.cssVars?.shadows && Object.keys(schema.cssVars.shadows).length) {
+        if (!schema.shadowScale?.length) parts.push('', 'Elevation tokens:');
+        Object.entries(schema.cssVars.shadows).slice(0, 6).forEach(([k, v]) => {
+            parts.push(`• ${k.replace('--', '')}: ${v}`);
+        });
+    }
 
+    // ── Motion ─────────────────────────────────────────────────
+    const motionVars = schema.cssVars?.motion;
+    const motionComputed = schema.motion;
+    if (motionVars && Object.keys(motionVars).length) {
+        parts.push('', 'Motion tokens:');
+        Object.entries(motionVars).slice(0, 8).forEach(([k, v]) => {
+            parts.push(`• ${k.replace('--', '')}: ${v}`);
+        });
+    } else if (motionComputed) {
+        parts.push('', 'Motion:');
+        parts.push(`• Durations — ${motionComputed.durations.join(', ')}`);
+        if (motionComputed.easings.length) {
+            parts.push(`• Easing — ${motionComputed.easings.join(', ')}`);
+        }
+    }
+
+    // ── Components ─────────────────────────────────────────────
     parts.push('', 'Components:');
     parts.push(`• Button — ${schema.buttonStyle}`);
     parts.push(`• Card — ${schema.cardStyle}`);
     parts.push(`• Input — ${schema.inputStyle}`);
     if (schema.linkStyle) parts.push(`• Link — ${schema.linkStyle}`);
 
+    // ── Gradients ──────────────────────────────────────────────
     if (Array.isArray(schema.gradients) && schema.gradients.length) {
         parts.push('', 'Gradients (use as brand moments — hero text, CTAs, accents):');
         schema.gradients.forEach(stops => {
@@ -412,6 +570,90 @@ function buildFinalPrompt(schema) {
                 parts.push(`• ${stops.join(' → ')}`);
             }
         });
+    }
+
+    // ── Responsive breakpoints ─────────────────────────────────
+    if (Array.isArray(schema.breakpoints) && schema.breakpoints.length) {
+        parts.push('', `Responsive breakpoints: ${schema.breakpoints.map(b => `${b}px`).join(', ')}`);
+    }
+
+    // ── Layout grid ────────────────────────────────────────────
+    if (schema.layoutGrid?.maxWidth || schema.layoutGrid?.gutter) {
+        const lg = schema.layoutGrid;
+        const parts2 = [];
+        if (lg.maxWidth) parts2.push(`max-width ${lg.maxWidth}`);
+        if (lg.gutter)   parts2.push(`${lg.gutter} gutter`);
+        parts.push('', `Layout grid: ${parts2.join(', ')}`);
+    }
+
+    // ── Full spacing scale ─────────────────────────────────────
+    if (Array.isArray(schema.spacingScale) && schema.spacingScale.length >= 3) {
+        parts.push(`Spacing scale: ${schema.spacingScale.map(n => `${n}px`).join(' / ')}`);
+    }
+
+    // ── Focus ring ─────────────────────────────────────────────
+    if (schema.focusStyles) {
+        const f = schema.focusStyles;
+        const fParts = [];
+        if (f.outline)       fParts.push(f.outline);
+        if (f.outlineOffset) fParts.push(`${f.outlineOffset} offset`);
+        if (f.boxShadow)     fParts.push(`shadow: ${f.boxShadow}`);
+        if (fParts.length) parts.push(`Focus ring: ${fParts.join(', ')}`);
+    }
+
+    // ── Interaction states ─────────────────────────────────────
+    const hasInteraction = schema.hoverBehaviour || schema.activeStates || schema.focusStyles;
+    if (hasInteraction) {
+        parts.push('', 'Interaction states:');
+        if (schema.hoverBehaviour) {
+            const h = schema.hoverBehaviour;
+            const hp = [];
+            if (h.transform) hp.push(h.transform);
+            if (h.shadow)    hp.push(`shadow ${h.shadow}`);
+            if (h.opacity !== undefined) hp.push(`opacity ${h.opacity}`);
+            if (hp.length) parts.push(`• hover — ${hp.join(', ')}`);
+        }
+        if (schema.activeStates) {
+            const a = schema.activeStates;
+            const ap = [];
+            if (a.transform) ap.push(a.transform);
+            if (a.scale)     ap.push(`scale ${a.scale}`);
+            if (a.opacity !== undefined) ap.push(`opacity ${a.opacity}`);
+            if (ap.length) parts.push(`• active — ${ap.join(', ')}`);
+        }
+        if (schema.focusStyles) {
+            const f = schema.focusStyles;
+            const fp = [];
+            if (f.outline)       fp.push(f.outline);
+            if (f.outlineOffset) fp.push(`${f.outlineOffset} offset`);
+            if (f.boxShadow)     fp.push(`shadow ${f.boxShadow}`);
+            if (fp.length) parts.push(`• focus — ${fp.join(', ')}`);
+        }
+    }
+
+    // ── Z-index layers ─────────────────────────────────────────
+    if (Array.isArray(schema.zIndexScale) && schema.zIndexScale.length) {
+        parts.push('', `Z-index layers: ${schema.zIndexScale.map(l => `${l.role}: ${l.z}`).join(' → ')}`);
+    }
+
+    // ── Responsive component changes ───────────────────────────
+    if (schema.responsiveComponents) {
+        parts.push('', 'Responsive component changes:');
+        Object.entries(schema.responsiveComponents)
+            .sort(([a], [b]) => parseInt(b) - parseInt(a))
+            .slice(0, 4)
+            .forEach(([bp, rules]) => {
+                rules.slice(0, 3).forEach(({ selector, changes }) => {
+                    const c = Object.entries(changes).map(([k, v]) => `${k}: ${v}`).join(', ');
+                    parts.push(`• at ${bp}px — ${selector} → ${c}`);
+                });
+            });
+    }
+
+    // ── Page structure ─────────────────────────────────────────
+    if (Array.isArray(schema.pageStructure) && schema.pageStructure.length) {
+        parts.push('', `Page structure: ${schema.pageStructure.join(' → ')}`);
+        parts.push(`(Reproduce this section order when building a full-page layout.)`);
     }
 
     parts.push(
@@ -429,50 +671,149 @@ function buildFinalPrompt(schema) {
 function renderSchema(schema, siteName) {
     schemaBody.innerHTML = '';
 
-    const essence = [
-        'vibe',
-        'primaryColor',
-        'accentColor',
-        'surfaceColor',
-        'headingFont',
-        'bodyFont',
-        'buttonStyle'
-    ];
+    // ── VIBE ──
+    if (schema.vibe) {
+        const chip = document.createElement('div');
+        chip.className = 'ds-vibe';
+        chip.textContent = schema.vibe;
+        schemaBody.appendChild(chip);
+    }
 
-    const allRelevantKeys = [
-        'vibe',
-        'primaryColor', 'accentColor', 'surfaceColor', 'elevatedSurface', 'textColor', 'mutedText',
-        'headingFont', 'bodyFont', 'typeScale',
-        'radius', 'spacingScale',
-        'borderColor', 'iconStroke', 'shadowScale',
-        'buttonStyle', 'cardStyle', 'inputStyle', 'linkStyle',
-        'gradients'
-    ];
+    // ── PALETTE ──
+    const paletteColors = [
+        { label: 'primary',  hex: schema.primaryColor },
+        { label: 'accent',   hex: schema.accentColor },
+        { label: 'surface',  hex: schema.surfaceColor },
+        { label: 'elevated', hex: schema.elevatedSurface },
+        { label: 'text',     hex: schema.textColor },
+        { label: 'muted',    hex: schema.mutedText },
+    ].filter(c => c.hex && isHex(c.hex));
 
-    let shown = 0;
-    essence.forEach(key => {
-        const val = schema[key];
-        if (val === undefined || val === null || val === '') return;
-        appendSchemaLine(prettyKey(key), String(val));
-        shown++;
-    });
+    if (paletteColors.length) {
+        const sec = makeDsSection('Palette');
+        const row = document.createElement('div');
+        row.className = 'ds-palette';
+        paletteColors.forEach(({ label, hex }) => {
+            const item = document.createElement('div');
+            item.className = 'ds-swatch';
+            item.innerHTML = `
+                <div class="ds-swatch-dot" style="background:${escapeHtml(hex)}" title="${escapeHtml(hex)}"></div>
+                <span class="ds-swatch-name">${label}</span>`;
+            row.appendChild(item);
+        });
+        sec.appendChild(row);
+        schemaBody.appendChild(sec);
+    }
 
-    const totalInBrief = allRelevantKeys.filter(k => {
-        const v = schema[k];
-        if (Array.isArray(v)) return v.length > 0;
-        return v !== undefined && v !== null && v !== '';
-    }).length;
-    const moreCount = Math.max(0, totalInBrief - shown);
+    // ── TYPOGRAPHY ──
+    if (schema.headingFont || schema.bodyFont || schema.typeScale) {
+        const sec = makeDsSection('Typography');
+        if (schema.headingFont) {
+            sec.appendChild(makeDsTypeLine('Heading', schema.headingFont));
+        }
+        if (schema.bodyFont) {
+            sec.appendChild(makeDsTypeLine('Body', schema.bodyFont));
+        }
+        if (schema.typeScale) {
+            const scale = document.createElement('div');
+            scale.className = 'ds-type-scale';
+            scale.textContent = schema.typeScale;
+            sec.appendChild(scale);
+        }
+        schemaBody.appendChild(sec);
+    }
 
-    if (moreCount > 0) {
+    // ── TOKENS ──
+    const tokenRows = [
+        schema.radius       && { label: 'Radius',   val: schema.radius },
+        schema.spacingScale && { label: 'Spacing',  val: schema.spacingScale },
+        schema.borderColor  && { label: 'Border',   val: schema.borderColor, isColor: true },
+        schema.iconStroke   && { label: 'Icons',    val: schema.iconStroke },
+    ].filter(Boolean);
+
+    if (tokenRows.length) {
+        const sec = makeDsSection('Tokens');
+        tokenRows.forEach(({ label, val, isColor }) => {
+            const line = document.createElement('div');
+            line.className = 'ds-token-line';
+            const valStr = isColor && isHex(val)
+                ? `<span class="ds-dot" style="background:${escapeHtml(val)}"></span><span class="ds-token-val mono">${escapeHtml(val)}</span>`
+                : `<span class="ds-token-val">${escapeHtml(String(val))}</span>`;
+            line.innerHTML = `<span class="ds-token-key">${label}</span>${valStr}`;
+            sec.appendChild(line);
+        });
+        schemaBody.appendChild(sec);
+    }
+
+    // ── COMPONENTS ──
+    const compRows = [
+        schema.buttonStyle && { label: 'Button', val: schema.buttonStyle },
+        schema.cardStyle   && { label: 'Card',   val: schema.cardStyle },
+        schema.inputStyle  && { label: 'Input',  val: schema.inputStyle },
+    ].filter(Boolean);
+
+    if (compRows.length) {
+        const sec = makeDsSection('Components');
+        compRows.forEach(({ label, val }) => {
+            const line = document.createElement('div');
+            line.className = 'ds-comp-line';
+            // Parse the formatted string into a compact visual summary.
+            // The full string (e.g. "#08090D bg, #F0F2F5 text, 10px radius, 500 weight")
+            // is meant for the AI prompt — in the popup we show just the key visual tokens.
+            const parts = String(val).split(',').map(s => s.trim());
+            const bg     = parts.find(p => p.endsWith(' bg'));
+            const radius = parts.find(p => p.includes('radius'));
+            const pad    = parts.find(p => p.includes('padding'));
+            const pieces = [];
+            if (bg) {
+                const hex = bg.replace(' bg', '').trim();
+                const swatch = isHex(hex)
+                    ? `<span class="ds-dot" style="background:${escapeHtml(hex)}"></span>`
+                    : '';
+                pieces.push(`${swatch}<span>${escapeHtml(hex)} bg</span>`);
+            }
+            if (radius) pieces.push(`<span>${escapeHtml(radius)}</span>`);
+            if (pad)    pieces.push(`<span>${escapeHtml(pad)}</span>`);
+            const summary = pieces.length ? pieces.join('<span class="ds-comp-sep">·</span>') : escapeHtml(String(val));
+            line.innerHTML = `<span class="ds-comp-key">${label}</span><span class="ds-comp-val">${summary}</span>`;
+            sec.appendChild(line);
+        });
+        schemaBody.appendChild(sec);
+    }
+
+    // ── MORE ──
+    const extras = [
+        Array.isArray(schema.gradients)  && schema.gradients.length > 0,
+        Array.isArray(schema.shadowScale) && schema.shadowScale.length > 0,
+        !!schema.linkStyle,
+    ].filter(Boolean).length;
+
+    if (extras > 0) {
         const more = document.createElement('div');
         more.className = 'schema-more';
-        more.textContent = `+${moreCount} more tokens in the full brief →`;
+        more.textContent = `+${extras} more in the full brief →`;
         schemaBody.appendChild(more);
     }
 
     schemaSummary.style.display = 'none';
     schemaBox.classList.remove('hidden');
+}
+
+function makeDsSection(label) {
+    const sec = document.createElement('div');
+    sec.className = 'ds-section';
+    const head = document.createElement('div');
+    head.className = 'ds-section-label';
+    head.textContent = label;
+    sec.appendChild(head);
+    return sec;
+}
+
+function makeDsTypeLine(role, val) {
+    const line = document.createElement('div');
+    line.className = 'ds-type-line';
+    line.innerHTML = `<span class="ds-type-role">${role}</span><span class="ds-type-val">${escapeHtml(String(val))}</span>`;
+    return line;
 }
 
 function prettyKey(k) {
@@ -695,4 +1036,123 @@ function shift(hex, amount) {
         .map(v => Math.max(0, Math.min(255, v)).toString(16).padStart(2, '0'))
         .join('');
     return '#' + out.toUpperCase();
+}
+
+// ── SNAP HISTORY ──────────────────────────────────────────────────────────────
+
+// Compress full screenshot to a thumbnail for storage.
+// 720×450 @ 72% JPEG ≈ 45-60KB per snap → 50 snaps ≈ 2.5MB total.
+// Large enough to look sharp in the detail view (max 780px wide panel)
+// without blowing up storage budget meaningfully.
+async function compressThumbnail(dataUrl) {
+    return new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 720; canvas.height = 450;
+            const ctx = canvas.getContext('2d');
+            // Centre-crop to fill the canvas (16:10 ratio)
+            const srcAspect = img.width / img.height;
+            const dstAspect = 720 / 450;
+            let sx = 0, sy = 0, sw = img.width, sh = img.height;
+            if (srcAspect > dstAspect) {
+                sw = img.height * dstAspect;
+                sx = (img.width - sw) / 2;
+            } else {
+                sh = img.width / dstAspect;
+                sy = (img.height - sh) / 2;
+            }
+            ctx.drawImage(img, sx, sy, sw, sh, 0, 0, 720, 450);
+            resolve(canvas.toDataURL('image/jpeg', 0.72));
+        };
+        img.onerror = () => resolve(null);
+        img.src = dataUrl;
+    });
+}
+
+async function saveSnapToHistory(schema, tokens, screenshot) {
+    const thumbnail = await compressThumbnail(screenshot);
+    const recommendation = recommendUseCase(schema);
+
+    const snap = {
+        id:             `snap_${Date.now()}`,
+        timestamp:      Date.now(),
+        siteName:       tokens.siteName || '',
+        pageTitle:      tokens.pageTitle || '',
+        thumbnail,
+        schema,
+        finalPrompt,
+        recommendation  // array of { type, score }
+    };
+
+    const { snapHistory = [] } = await chrome.storage.local.get('snapHistory');
+    const updated = [snap, ...snapHistory].slice(0, 50);   // keep 50 most recent
+    await chrome.storage.local.set({ snapHistory: updated });
+}
+
+// ── USE-CASE RECOMMENDATION ENGINE ───────────────────────────────────────────
+// Pure deterministic heuristics — no AI. Analyses palette, vibe, radius,
+// typography, and gradients to suggest what kind of product/site this design
+// language is best suited for.
+function recommendUseCase(schema) {
+    const scores = new Map();
+    const add = (cat, pts) => scores.set(cat, (scores.get(cat) || 0) + pts);
+
+    const isDark        = schema.vibe?.includes('dark');
+    const isMonochrome  = !schema.primaryColor;
+    const isVibrant     = schema.vibe?.includes('vibrant');
+    const isRounded     = schema.vibe?.includes('rounded');
+    const isSharp       = schema.vibe?.includes('sharp');
+    const primary       = schema.primaryColor;
+    const heading       = (schema.headingFont || '').toLowerCase();
+
+    // ── Hue-based signals ──
+    if (primary && isHex(primary)) {
+        const h = hue(primary);
+        const s = saturation(primary);
+
+        if (h >= 200 && h <= 265) { add('B2B SaaS', 4); add('Productivity Tool', 3); add('Developer Tool', 2); }
+        if (h >= 100 && h <= 165) { add('E-Commerce', 3); add('Fintech', 3); add('Health & Wellness', 2); }
+        if (h <= 18 || h >= 345)  { add('Entertainment', 2); add('Food & Lifestyle', 2); add('Marketing Site', 2); }
+        if (h > 18 && h <= 55)    { add('Consumer App', 3); add('Marketplace', 2); add('Creative Tool', 2); }
+        if (h > 55 && h <= 100)   { add('E-Commerce', 2); add('Health & Wellness', 2); add('Sustainability', 1); }
+        if (h > 260 && h <= 310)  { add('AI Product', 4); add('Creative Tool', 3); add('Crypto / Web3', 2); }
+        if (h > 310 && h < 345)   { add('Consumer App', 3); add('Fashion / Lifestyle', 2); add('AI Product', 2); }
+        if (h > 165 && h < 200)   { add('Developer Tool', 3); add('AI Product', 2); add('B2B SaaS', 2); }
+
+        if (s > 0.75)             { add('Consumer App', 2); add('Gaming / Entertainment', 1); }
+        if (s > 0.3 && s < 0.6)  { add('B2B SaaS', 1); add('Productivity Tool', 1); }
+    }
+
+    // ── Dark / light mode ──
+    if (isDark)       { add('Developer Tool', 3); add('Gaming / Entertainment', 2); add('Crypto / Web3', 2); add('AI Product', 1); }
+    if (!isDark && !isMonochrome) { add('B2B SaaS', 1); add('Consumer App', 1); }
+
+    // ── Monochrome ──
+    if (isMonochrome) { add('Agency / Portfolio', 5); add('Editorial / Media', 3); add('Luxury Brand', 3); add('Developer Tool', 1); }
+
+    // ── Shape language ──
+    if (isRounded)    { add('Consumer App', 2); add('B2B SaaS', 1); add('Health & Wellness', 1); }
+    if (isSharp)      { add('Developer Tool', 2); add('Agency / Portfolio', 2); add('Editorial / Media', 1); }
+
+    // ── Typography ──
+    if (/mono|code|geist|jetbrains|fira|cascadia/i.test(heading))        { add('Developer Tool', 4); }
+    if (/serif|times|bradford|literata|editorial|display/i.test(heading)) { add('Editorial / Media', 3); add('Agency / Portfolio', 2); add('Luxury Brand', 1); }
+
+    // ── Gradients ──
+    if ((schema.gradients?.length || 0) > 0 && isVibrant) { add('AI Product', 2); add('Consumer App', 2); add('Gaming / Entertainment', 1); }
+
+    // ── Type scale size ──
+    const heroSize = parseInt((schema.typeScale || '').split('/')[0]) || 0;
+    if (heroSize >= 80)  { add('Marketing Site', 2); add('Agency / Portfolio', 1); }
+    if (heroSize >= 140) { add('Agency / Portfolio', 2); add('Gaming / Entertainment', 1); }
+
+    // ── Shadow depth ──
+    const shadowDepth = schema.shadowScale?.length || 0;
+    if (shadowDepth >= 2) { add('B2B SaaS', 1); add('E-Commerce', 1); }
+
+    return [...scores.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([type, score]) => ({ type, score }));
 }

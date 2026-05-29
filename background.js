@@ -1,3 +1,10 @@
+// ── ExtensionPay ──────────────────────────────────────────────
+// Download ExtPay.js from https://extensionpay.com and place it
+// in the extension root folder alongside this file.
+importScripts('ExtPay.js');
+const extpay = ExtPay('uidrop'); // ← replace 'uidrop' with your ExtensionPay app name
+extpay.startBackground();
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.action === "takeScreenshot") {
@@ -119,39 +126,33 @@ async function injectPromptIntoEditor(text, imageDataUrl, target) {
     try {
       const res = await fetch(imageDataUrl);
       const blob = await res.blob();
-      const file = new File([blob], 'uidrop-screenshot.png', { type: 'image/png' });
+      // Use blob.type so JPEG thumbnails from the library aren't mislabelled as PNG
+      const file = new File([blob], 'uidrop-screenshot', { type: blob.type || 'image/png' });
 
-      // Try pasting the image up to 3 times with delays.
-      // Claude/ChatGPT editors sometimes need extra time to accept image pastes
-      // even after the text editor is ready.
-      let imageInserted = false;
-      for (let attempt = 0; attempt < 3 && !imageInserted; attempt++) {
-        if (attempt > 0) await new Promise(r => setTimeout(r, 800));
-        try {
-          const dt = new DataTransfer();
-          dt.items.add(file);
-          editor.focus();
-          const ev = new ClipboardEvent('paste', {
-            bubbles: true, cancelable: true, clipboardData: dt
-          });
-          const accepted = editor.dispatchEvent(ev);
-          // Check if an image preview appeared (Claude adds img or figure elements)
-          await new Promise(r => setTimeout(r, 300));
-          const hasImage = editor.closest('form')?.querySelector('img[src^="blob:"], img[src^="data:"], [data-testid*="image"], [data-testid*="file"]');
-          if (hasImage) imageInserted = true;
-        } catch (e) {
-          console.warn(`[UIDrop] paste-event image attempt ${attempt + 1} failed`, e);
-        }
-      }
+      // Single paste attempt only — retrying causes duplicate images because the
+      // DOM verification selector misses Claude's actual post-paste elements, so
+      // imageInserted stays false and every retry pastes the image again.
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      editor.focus();
+      editor.dispatchEvent(new ClipboardEvent('paste', {
+        bubbles: true, cancelable: true, clipboardData: dt
+      }));
 
-      // Fallback: find a visible file input and set files on it.
-      if (!imageInserted) {
+      // Wait for Claude/ChatGPT to process the paste and update the DOM.
+      await new Promise(r => setTimeout(r, 900));
+      const hasImage = editor.closest('form')?.querySelector(
+        'img[src^="blob:"], img[src^="data:"], [data-testid*="image"], [data-testid*="file"], [data-testid*="attachment"]'
+      );
+
+      // Only use the file-input fallback if the paste genuinely didn't register.
+      if (!hasImage) {
         const fileInputs = Array.from(document.querySelectorAll('input[type="file"]'));
         const imageInput = fileInputs.find(i => !i.accept || /image|\*/.test(i.accept)) || fileInputs[0];
         if (imageInput) {
-          const dt = new DataTransfer();
-          dt.items.add(file);
-          imageInput.files = dt.files;
+          const dt2 = new DataTransfer();
+          dt2.items.add(file);
+          imageInput.files = dt2.files;
           imageInput.dispatchEvent(new Event('change', { bubbles: true }));
         }
       }

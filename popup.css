@@ -457,11 +457,173 @@ body::-webkit-scrollbar-corner {
 }
 
 .schema-body {
-  padding: 12px 14px 4px;
+  padding: 10px 14px 8px;
   background: var(--bg-card-2);
   display: flex;
   flex-direction: column;
+  gap: 10px;
+}
+
+/* ── Design-system sections ── */
+.ds-vibe {
+  display: inline-flex;
+  align-self: flex-start;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--blue-bright);
+  background: rgba(91, 141, 239, 0.10);
+  border: 1px solid rgba(91, 141, 239, 0.22);
+  padding: 3px 9px;
+  border-radius: 999px;
+}
+
+.ds-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ds-section-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+/* Palette */
+.ds-palette {
+  display: flex;
+  gap: 6px;
+}
+
+.ds-swatch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.ds-swatch-dot {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  flex-shrink: 0;
+  cursor: default;
+}
+
+.ds-swatch-name {
+  font-size: 9px;
+  font-weight: 500;
+  color: var(--text-faint);
+  letter-spacing: -0.1px;
+}
+
+/* Typography */
+.ds-type-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.ds-type-role {
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--text-mute);
+  min-width: 52px;
+  flex-shrink: 0;
+}
+
+.ds-type-val {
+  color: var(--text);
+  font-weight: 500;
+  font-size: 11.5px;
+  letter-spacing: -0.15px;
+}
+
+.ds-type-scale {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10.5px;
+  font-weight: 400;
+  color: var(--text-dim);
+  letter-spacing: -0.1px;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+/* Tokens */
+.ds-token-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.ds-token-key {
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--text-mute);
+  min-width: 52px;
+  flex-shrink: 0;
+}
+
+.ds-token-val {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.ds-token-val.mono {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.ds-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  flex-shrink: 0;
+}
+
+/* Components */
+.ds-comp-line {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ds-comp-key {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.ds-comp-val {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-dim);
+  line-height: 1.5;
+  display: flex;
+  align-items: center;
   gap: 5px;
+  flex-wrap: wrap;
+}
+
+.ds-comp-sep {
+  color: var(--text-faint);
+  font-size: 10px;
 }
 
 .schema-line {
@@ -954,6 +1116,64 @@ body::-webkit-scrollbar-corner {
   font-family: 'Switzer', system-ui, sans-serif;
   color: var(--text-mute);
   letter-spacing: 0.1px;
+}
+
+.library-row {
+  margin: 10px 18px 0;
+}
+
+.library-btn {
+  width: 100%;
+  padding: 11px 16px;
+  background: linear-gradient(135deg, rgba(255,124,40,0.06) 0%, rgba(138,109,255,0.08) 50%, rgba(91,141,239,0.06) 100%);
+  border: 1px solid rgba(138,109,255,0.28);
+  border-radius: 10px;
+  color: var(--text-dim);
+  font-family: 'Switzer', system-ui, sans-serif;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: -0.1px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: border-color 0.2s, background 0.2s, color 0.2s;
+}
+
+.library-btn:hover {
+  border-color: rgba(138,109,255,0.5);
+  background: linear-gradient(135deg, rgba(255,124,40,0.10) 0%, rgba(138,109,255,0.14) 50%, rgba(91,141,239,0.10) 100%);
+  color: #fff;
+}
+
+.library-badge {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: 'Switzer', system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1px;
+  color: rgba(255,255,255,0.95);
+  background: linear-gradient(135deg, rgba(255,107,43,0.18), rgba(138,109,255,0.22), rgba(91,141,239,0.18));
+  border: 1px solid rgba(138,109,255,0.4);
+  padding: 2px 9px 2px 6px;
+  border-radius: 999px;
+}
+
+/* Locked state — user hasn't paid yet */
+.library-btn-locked {
+  opacity: 0.7;
+}
+.library-btn-locked .library-badge {
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(255,255,255,0.15);
+  color: rgba(255,255,255,0.5);
+}
+.library-btn-locked:hover {
+  border-color: rgba(255,255,255,0.3);
+  background: rgba(255,255,255,0.04);
 }
 
 .footer {

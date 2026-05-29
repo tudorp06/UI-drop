@@ -102,8 +102,11 @@ function scrapeDesignTokens() {
       // Real cards are bounded width — not full-width hero sections
       if (el.offsetWidth < 120 || el.offsetWidth > 720) return false;
       if (el.offsetHeight < 60 || el.offsetHeight > 900) return false;
-      // Real cards have a visual container — bg, border, or shadow
       const s = getComputedStyle(el);
+      // Reject layout containers: real cards don't have > 60px vertical padding.
+      // Alistair-style hero sections report padding like "156.8px 0" which is clearly a section.
+      if (parseFloat(s.paddingTop) > 60 || parseFloat(s.paddingBottom) > 60) return false;
+      // Real cards have a visual container — bg, border, or shadow
       const hasBg = s.backgroundColor && s.backgroundColor !== 'rgba(0, 0, 0, 0)' && s.backgroundColor !== 'transparent';
       const hasBorder = s.borderTopWidth !== '0px' && s.borderTopStyle !== 'none';
       const hasShadow = s.boxShadow && s.boxShadow !== 'none';
@@ -118,7 +121,9 @@ function scrapeDesignTokens() {
 
   const link = scrapeComponent(
     'a:not(.btn):not([class*="button"]):not([role="button"])',
-    el => isVisible(el) && (el.textContent?.trim().length || 0) > 0
+    el => isVisible(el)
+       && (el.textContent?.trim().length || 0) > 2
+       && !el.querySelector('img, canvas, video, picture, iframe')
   );
 
   // Promote component colors back into the palette pool so they're
@@ -158,6 +163,54 @@ function scrapeDesignTokens() {
     .map(([hex]) => hex)
     .slice(0, 12);
 
+  // Expose the actual computed page background so derivePalette can anchor
+  // surface to it rather than relying solely on frequency ordering.
+  // Kriss (dusty rose), Lusion (lavender), Pika (cream) all have tinted bgs
+  // that lose to white card elements in frequency but ARE the real surface.
+  const htmlBg = colorOrNull(getComputedStyle(document.documentElement).backgroundColor);
+  const bodyBgRaw = colorOrNull(bodyStyle.backgroundColor);
+  const pageBg = htmlBg || bodyBgRaw || null;
+
+  // ── Deep extraction layers ───────────────────────────────────
+  const cssVars             = scrapeCSSVariables();
+  const typographyHierarchy = scrapeTypographyHierarchy();
+  const motion              = scrapeMotionTokens();
+  const breakpoints         = scrapeBreakpoints();
+
+  // ── Extension-exclusive layers ───────────────────────────────
+  // These require live browser access — no static scraper can do them.
+
+  // Actual rendered layout geometry: max content width + dominant gutter.
+  // Derived from getBoundingClientRect() on containers, not from CSS text.
+  const layoutGrid          = scrapeLayoutGrid();
+
+  // Complete spacing scale from every rendered gap/padding/margin on the
+  // page — clustered into a clean design-system rhythm (e.g. 4/8/12/16/24/32).
+  const spacingScale        = scrapeFullSpacingScale();
+
+  // Focus ring styles captured by programmatically focusing real form
+  // elements and reading their computed outline/shadow AFTER focus —
+  // impossible without a live browser with DOM access.
+  const focusStyles         = scrapeFocusRing();
+
+  // Hover behaviour read from CSS rule text for :hover selectors on
+  // interactive elements — extracts transforms, shadow deltas, opacity changes.
+  const hoverBehaviour      = scrapeHoverBehaviour();
+
+  // Page structure: which section types exist and in what order.
+  const pageStructure       = scrapePageStructure();
+
+  // Z-index stacking layers with semantic roles (nav/dropdown/modal etc.)
+  const zIndexScale         = scrapeZIndexScale();
+
+  // :active state transforms/opacity from CSS rules — completes the
+  // interaction state picture alongside hover and focus.
+  const activeStates        = scrapeActiveStates();
+
+  // How components change inside @media rules at specific breakpoints.
+  // E.g. "button goes full-width at 600px, font-size drops to 14px".
+  const responsiveComponents = scrapeResponsiveComponents();
+
   return {
     fonts:             uniqueFonts,
     colors:            colorsByUse,
@@ -170,28 +223,53 @@ function scrapeDesignTokens() {
     borderColor,
     iconStroke,
     isDark:            detectPageIsDark(),
+    pageBg,
+    cssVars,
+    typographyHierarchy,
+    motion,
+    breakpoints,
+    layoutGrid,
+    spacingScale,
+    focusStyles,
+    hoverBehaviour,
+    pageStructure,
+    zIndexScale,
+    activeStates,
+    responsiveComponents,
     siteName:          window.location.hostname.replace('www.', ''),
     pageTitle:         document.title,
     components:        { button, card, input, link }
   };
 }
 
-// Class-name-like words sometimes leak into font stacks as bare identifiers
-// (e.g. font-family: "Source Sans Pro", Topnav, sans-serif). They're never
-// real fonts, just CSS-author hints. Strip them from the candidate name.
+// Class-name-like words and font-variant suffixes that leak into font names.
+// "Source Sans Pro Topnav" → "Source Sans Pro"
+// "Inter Variable" → "Inter", "geistNumbers" → "Geist"
 const NOT_FONT_WORDS = new Set([
   'topnav', 'sidenav', 'sidebar', 'header', 'footer', 'main', 'content',
   'container', 'wrapper', 'banner', 'menu', 'nav', 'navigation',
-  'card', 'panel', 'section', 'page', 'body', 'heading'
+  'card', 'panel', 'section', 'page', 'body', 'heading',
+  // Font variant/axis descriptors that leak into family names
+  'variable', 'numbers', 'display', 'caption', 'mono', 'condensed',
+  'expanded', 'narrow', 'wide', 'fallback'
 ]);
 
 // ── Skip system-fallback fonts at the head of a stack, return the intent ──
-// Also strip class-name-like suffixes baked into custom font names
-// (e.g. "Source Sans Pro Topnav" → "Source Sans Pro").
 function pickIntentFont(stack) {
   if (!stack) return null;
   const tokens = stack.split(',').map(f => f.trim().replace(/['"]/g, ''));
   for (const t of tokens) {
+    // Next.js mangles font-family strings: "__Inter_f367f3", "__Inter_Fallback_abc"
+    // Extract the real name: strip the __ prefix and the _hash/_Fallback suffixes.
+    if (/^__[A-Za-z]/.test(t)) {
+      const realName = t
+        .replace(/^__/, '')
+        .replace(/_Fallback(?:_[a-f0-9]+)?$/i, '')
+        .replace(/_[a-f0-9]{4,}$/i, '')
+        .trim();
+      if (realName && !SYSTEM_FONTS.has(realName)) return realName;
+      continue;
+    }
     if (!SYSTEM_FONTS.has(t)) {
       const cleaned = stripNonFontWords(t);
       if (cleaned) return cleaned;
@@ -245,11 +323,28 @@ function scrapeInteractiveColors(colorCounts, bump, bumpInteractive) {
       if (r.width >= 60 && r.height >= 28) {
         const bgHex = colorOrNull(s.backgroundColor);
         if (bgHex && isHexSaturated(bgHex, 0.30)) {
-          bumpInteractive(bgHex, weight);
+          // Skip <a> elements wrapping media (thumbnails, illustrations, logos).
+          const isMediaWrapper = el.tagName === 'A' &&
+            !!el.querySelector('img, canvas, video, picture, iframe, svg[width][height]');
+          if (!isMediaWrapper) {
+            // Skip semi-transparent overlays — they're UI chrome, not brand identity.
+            // Only rgba() colors carry an alpha channel; rgb() is always fully opaque.
+            // IMPORTANT: do NOT run the alpha regex on rgb() strings — the regex
+            // matches the last number before ")", which on "rgb(255, 100, 0)" is the
+            // blue channel (0), not alpha. That would falsely exclude solid orange/red/green CTAs.
+            // Threshold 0.9: excludes frosted-glass overlays like Linear's rgba(…, 0.85)
+            // nav highlights while keeping essentially-solid brand buttons (alpha 0.9–1.0).
+            const rawBg = s.backgroundColor;
+            const alpha = rawBg.startsWith('rgba(')
+              ? parseFloat(rawBg.match(/,\s*([\d.]+)\s*\)/)?.[1] ?? '1')
+              : 1;
+            if (alpha >= 0.9) {
+              bumpInteractive(bgHex, weight);
+            }
+          }
         }
 
         // Gradient backgrounds on interactive elements — extract stops and promote.
-        // A gradient CTA is an even stronger brand signal than a flat-fill CTA.
         const bgImg = s.backgroundImage;
         if (bgImg && bgImg.includes('gradient(')) {
           const gStops = extractGradientStops(bgImg);
@@ -260,20 +355,30 @@ function scrapeInteractiveColors(colorCounts, bump, bumpInteractive) {
           });
         }
 
-        // Text color on interactive elements — catches brand-colored button labels,
-        // active nav items, and text-style CTAs (e.g. Yahoo's purple "Subscribe" text).
-        // Weight reduced (÷2) because text is a weaker brand signal than filled bg.
+        // Text color — only for styled button-like elements (has border OR button padding).
+        // Plain <a> text links (blue underlined links on editorial sites) must NOT pollute
+        // the brand-color signal — they're everywhere and would beat the actual CTA color.
         const textHex = colorOrNull(s.color);
         if (textHex && isHexSaturated(textHex, 0.35)) {
-          bumpInteractive(textHex, Math.max(1, Math.floor(weight / 2)));
+          const hasBorder = s.borderTopStyle !== 'none' && s.borderTopWidth !== '0px';
+          const hasButtonPad = parseFloat(s.paddingTop) >= 4 && parseFloat(s.paddingLeft) >= 8;
+          if (hasBorder || hasButtonPad) {
+            bumpInteractive(textHex, Math.max(1, Math.floor(weight / 2)));
+          }
         }
       }
       // Border accent on interactive elements — catches active nav indicators
       // (e.g. Render's purple left-border on active sidebar item).
       // Only borderLeft and borderBottom — common positions for active state indicators.
-      const borderHex = colorOrNull(s.borderLeftColor) || colorOrNull(s.borderBottomColor);
-      if (borderHex && isHexSaturated(borderHex, 0.35)) {
-        bumpInteractive(borderHex, 1);
+      // Size gate: only elements large enough to be real nav items or CTAs.
+      // Tiny icon links (social icons, inline anchors) can have colored borders
+      // without being a brand signal — excluding them prevents false positives on
+      // monochrome sites.
+      if (r.width >= 60 && r.height >= 20) {
+        const borderHex = colorOrNull(s.borderLeftColor) || colorOrNull(s.borderBottomColor);
+        if (borderHex && isHexSaturated(borderHex, 0.35)) {
+          bumpInteractive(borderHex, 1);
+        }
       }
     });
   });
@@ -345,6 +450,9 @@ function scrapeShadowScale() {
     if (!isVisible(el)) return;
     const sh = getComputedStyle(el).boxShadow;
     if (!sh || sh === 'none') return;
+    // color(display-p3 ...) / color(srgb ...) are wide-gamut formats that
+    // our parser can't handle — skip them to avoid malformed shadow entries.
+    if (sh.includes('color(display-p3') || sh.includes('color(srgb')) return;
     const compressed = compressShadow(sh);
     counts.set(compressed, (counts.get(compressed) || 0) + 1);
   });
@@ -354,6 +462,7 @@ function scrapeShadowScale() {
   // appears most often in the DOM.
   return [...counts.keys()]
     .map(s => ({ shadow: s, weight: shadowVisualWeight(s) }))
+    .filter(s => s.weight > 0)  // drop transparent / zero-blur non-shadows
     .sort((a, b) => a.weight - b.weight)
     .slice(0, 3)
     .map(s => s.shadow);
@@ -390,6 +499,10 @@ function scrapeDominantBorderColor() {
     const hex = colorOrNull(s.borderTopColor);
     if (!hex) continue;
     if (saturationOfHex(hex) >= 0.20) continue;  // brand-colored borders excluded
+    // Near-white (#F0+) and near-black (#10-) are not real hairline border colors —
+    // they're text, backgrounds, or decorative dots misread as borders.
+    const lum = (parseInt(hex.slice(1,3),16)*0.299 + parseInt(hex.slice(3,5),16)*0.587 + parseInt(hex.slice(5,7),16)*0.114) / 255;
+    if (lum > 0.90 || lum < 0.05) continue;
     counts.set(hex, (counts.get(hex) || 0) + 1);
   }
   if (!counts.size) return null;
@@ -446,7 +559,7 @@ function scrapeUsedGradients() {
     if (parsed.length >= 2 && gradientHasMeaningfulSpread(parsed)) {
       // Second dedup layer: two different CSS gradient strings can produce
       // the same stop colors (vendor prefix differences, angle differences).
-      const stopKey = parsed.slice(0, 3).join(',');
+      const stopKey = [...parsed.slice(0, 3)].sort().join(',');  // order-independent dedup
       if (seenStops.has(stopKey)) continue;
       seenStops.add(stopKey);
       stops.push(parsed.slice(0, 3));
@@ -455,14 +568,27 @@ function scrapeUsedGradients() {
   return stops;
 }
 
-// Reject "gradients" that are two near-identical near-white (or near-black)
-// shades — they're not brand moments, just subtle surface treatments.
+// Reject gradients that are:
+// 1. Near-identical stops (subtle surface treatments, not brand moments)
+// 2. All-dark stops (dark-to-dark background texture, not a brand color)
 function gradientHasMeaningfulSpread(stops) {
   if (stops.length < 2) return false;
+  // Must have meaningful color distance between at least one pair of adjacent stops
+  let hasSpread = false;
   for (let i = 0; i < stops.length - 1; i++) {
-    if (colorDistance(stops[i], stops[i + 1]) > 30) return true;
+    if (colorDistance(stops[i], stops[i + 1]) > 30) { hasSpread = true; break; }
   }
-  return false;
+  if (!hasSpread) return false;
+  // At least one stop must have visible luminance OR saturation.
+  // Pure dark-to-dark gradients (like #011C42 → #14376E) are background textures, not brand moments.
+  return stops.some(hex => {
+    if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return false;
+    const r = parseInt(hex.slice(1,3),16)/255, g = parseInt(hex.slice(3,5),16)/255, b = parseInt(hex.slice(5,7),16)/255;
+    const lum = 0.299*r + 0.587*g + 0.114*b;
+    const max = Math.max(r,g,b), min = Math.min(r,g,b);
+    const sat = max === 0 ? 0 : (max - min) / max;
+    return lum > 0.15 || sat > 0.20;
+  });
 }
 
 function colorDistance(hex1, hex2) {
@@ -591,6 +717,20 @@ function scrapePreferredButton() {
       .sort((a, b) => (b.sat * b.area) - (a.sat * a.area));
     pick = textRanked[0]?.el;
   }
+  // Third choice: any styled button (has solid bg or border) sorted by area.
+  // Catches black/white CTAs and ghost buttons that ARE the primary action.
+  if (!pick) {
+    const anyStyled = candidates
+      .map(el => {
+        const s = getComputedStyle(el);
+        const hasBg = !!colorOrNull(s.backgroundColor);
+        const hasBorder = s.borderTopStyle !== 'none' && s.borderTopWidth !== '0px';
+        return { el, hasBg, hasBorder, area: el.offsetWidth * el.offsetHeight };
+      })
+      .filter(c => c.hasBg || c.hasBorder)
+      .sort((a, b) => b.area - a.area);
+    pick = anyStyled[0]?.el;
+  }
   if (!pick) pick = candidates[0];
   return readComponentStyles(pick);
 }
@@ -606,16 +746,30 @@ function saturationOfHex(hex) {
 
 function readComponentStyles(el) {
   const s = getComputedStyle(el);
+  // Omit padding when both vertical sides are 0 — the element uses a fixed
+  // height rather than padding for its size, so the value is misleading.
+  const ptPx = parseFloat(s.paddingTop)  || 0;
+  const pbPx = parseFloat(s.paddingBottom) || 0;
+  const padding = (ptPx === 0 && pbPx === 0)
+    ? null
+    : compressBox(s.paddingTop, s.paddingRight, s.paddingBottom, s.paddingLeft);
+  // Only report shadow if it has real visual weight (filters rgba(0,0,0,0) 0 0 0 0)
+  const rawShadow = s.boxShadow;
+  const shadow = (rawShadow && rawShadow !== 'none' &&
+                  !rawShadow.includes('color(display-p3') &&
+                  shadowVisualWeight(compressShadow(rawShadow)) > 0)
+    ? compressShadow(rawShadow)
+    : null;
   return {
     bg:            colorOrNull(s.backgroundColor),
     color:         colorOrNull(s.color),
     border:        simplifyBorder(s.borderTopWidth, s.borderTopStyle, s.borderTopColor),
     radius:        s.borderRadius === '0px' ? null : s.borderRadius,
-    padding:       compressBox(s.paddingTop, s.paddingRight, s.paddingBottom, s.paddingLeft),
+    padding,
     fontSize:      s.fontSize,
     fontWeight:    s.fontWeight,
     textTransform: s.textTransform !== 'none' ? s.textTransform : null,
-    shadow:        s.boxShadow !== 'none' ? compressShadow(s.boxShadow) : null
+    shadow
   };
 }
 
@@ -632,17 +786,534 @@ function scrapeComponent(selector, filter) {
   if (!el) return null;
   const s = getComputedStyle(el);
 
+  const ptPx = parseFloat(s.paddingTop)    || 0;
+  const pbPx = parseFloat(s.paddingBottom) || 0;
+  const padding = (ptPx === 0 && pbPx === 0)
+    ? null
+    : compressBox(s.paddingTop, s.paddingRight, s.paddingBottom, s.paddingLeft);
+  const rawShadow = s.boxShadow;
+  const shadow = (rawShadow && rawShadow !== 'none' &&
+                  !rawShadow.includes('color(display-p3') &&
+                  shadowVisualWeight(compressShadow(rawShadow)) > 0)
+    ? compressShadow(rawShadow)
+    : null;
   return {
     bg:            colorOrNull(s.backgroundColor),
     color:         colorOrNull(s.color),
     border:        simplifyBorder(s.borderTopWidth, s.borderTopStyle, s.borderTopColor),
     radius:        s.borderRadius === '0px' ? null : s.borderRadius,
-    padding:       compressBox(s.paddingTop, s.paddingRight, s.paddingBottom, s.paddingLeft),
+    padding,
     fontSize:      s.fontSize,
     fontWeight:    s.fontWeight,
     textTransform: s.textTransform !== 'none' ? s.textTransform : null,
-    shadow:        s.boxShadow !== 'none' ? compressShadow(s.boxShadow) : null
+    shadow
   };
+}
+
+// ── Layout grid from rendered geometry ────────────────────────
+function scrapeLayoutGrid() {
+  const vw = window.innerWidth;
+
+  // Max content width: widest container that isn't full-viewport
+  let maxW = 0;
+  document.querySelectorAll('main, [class*="container" i], [class*="wrapper" i], [class*="inner" i]').forEach(el => {
+    if (!isVisible(el)) return;
+    const w = el.getBoundingClientRect().width;
+    if (w > 320 && w < vw - 4) maxW = Math.max(maxW, w);
+  });
+
+  // Dominant gutter: read getComputedStyle().gap directly — reliable across
+  // both grid and flex, no sibling-position arithmetic needed.
+  const gutters = new Map();
+  let sampled = 0;
+  for (const el of document.querySelectorAll('*')) {
+    if (sampled > 600) break;
+    if (!isVisible(el)) continue;
+    const s = getComputedStyle(el);
+    if (s.display !== 'flex' && s.display !== 'grid') continue;
+    sampled++;
+    // columnGap is the horizontal gutter — what layouts call "gutter"
+    const g = parseFloat(s.columnGap || s.gap);
+    if (g > 0 && g < 120) gutters.set(Math.round(g), (gutters.get(Math.round(g)) || 0) + 1);
+  }
+
+  const topGutter = [...gutters.entries()].sort((a, b) => b[1] - a[1])[0];
+
+  return {
+    maxWidth: maxW > 0 ? `${Math.round(maxW)}px` : null,
+    gutter:   topGutter ? `${topGutter[0]}px` : null,
+  };
+}
+
+// ── Full spacing scale from rendered layout ────────────────────
+// Collects every gap/padding value rendered on the page, clusters values
+// that are close together (within 2px), keeps only values that appear
+// multiple times across the design, returns as a sorted scale.
+function scrapeFullSpacingScale() {
+  const raw = new Map();
+  let sampled = 0;
+
+  for (const el of document.querySelectorAll('*')) {
+    if (sampled > 800) break;
+    if (!isVisible(el)) continue;
+    sampled++;
+    const s = getComputedStyle(el);
+
+    const collect = v => {
+      const n = parseFloat(v);
+      if (n > 0 && n <= 128) raw.set(n, (raw.get(n) || 0) + 1);
+    };
+
+    collect(s.gap); collect(s.rowGap); collect(s.columnGap);
+    collect(s.paddingTop); collect(s.paddingRight);
+    collect(s.paddingBottom); collect(s.paddingLeft);
+    collect(s.marginTop); collect(s.marginBottom);
+  }
+
+  // Filtering rules:
+  // - Skip < 4px: hairlines and sub-pixel offsets, not intentional spacing steps
+  // - Round to nearest 4px grid (Tailwind, MUI, Chakra all use 4px base)
+  // - Require ≥6 occurrences: eliminates one-off margins and browser defaults
+  // - Cap at 10 values for a clean readable scale
+  const scale = [];
+  const seen = new Set();
+  [...raw.entries()]
+    .filter(([n, count]) => n >= 4 && count >= 6)
+    .sort(([a], [b]) => a - b)
+    .forEach(([n]) => {
+      const rounded = Math.round(n / 4) * 4;
+      if (!seen.has(rounded)) { seen.add(rounded); scale.push(rounded); }
+    });
+
+  return scale.length >= 3 ? scale.slice(0, 10) : null;
+}
+
+// ── Focus ring — programmatic focus + stylesheet fallback ─────
+// Primary: physically focuses elements and reads computed style delta.
+// Fallback: reads :focus/:focus-visible rules from stylesheets for sites
+// that use `:focus-visible` (which doesn't trigger on programmatic focus).
+function scrapeFocusRing() {
+  // ── Primary: programmatic focus ──────────────────────────────
+  const candidates = [
+    ...document.querySelectorAll('input:not([type="hidden"]), textarea, button:not([disabled])')
+  ].filter(isVisible);
+
+  for (const el of candidates) {
+    const before = {
+      outline:       getComputedStyle(el).outline,
+      outlineOffset: getComputedStyle(el).outlineOffset,
+      boxShadow:     getComputedStyle(el).boxShadow,
+    };
+    try {
+      el.focus({ preventScroll: true });
+      const after = {
+        outline:       getComputedStyle(el).outline,
+        outlineOffset: getComputedStyle(el).outlineOffset,
+        boxShadow:     getComputedStyle(el).boxShadow,
+      };
+      const outlineChanged = after.outline   !== before.outline   && after.outline   !== 'none';
+      const shadowChanged  = after.boxShadow !== before.boxShadow && after.boxShadow !== 'none';
+      if (outlineChanged || shadowChanged) {
+        const result = {};
+        if (outlineChanged)              result.outline       = after.outline;
+        if (after.outlineOffset !== '0px') result.outlineOffset = after.outlineOffset;
+        if (shadowChanged)               result.boxShadow     = compressShadow(after.boxShadow);
+        return result;
+      }
+    } finally {
+      el.blur(); // always restore, even if an error occurs
+    }
+  }
+
+  // ── Fallback: read :focus-visible / :focus CSS rules ─────────
+  // Most modern sites suppress the default outline and add a custom
+  // :focus-visible ring — this doesn't trigger on programmatic focus
+  // so we must read it from the stylesheet directly.
+  const result = {};
+  for (const sheet of document.styleSheets) {
+    try {
+      for (const rule of sheet.cssRules) {
+        if (!(rule instanceof CSSStyleRule)) continue;
+        const sel = rule.selectorText || '';
+        if (!sel.includes(':focus')) continue;
+        const s = rule.style;
+        const outline  = s.getPropertyValue('outline');
+        const offset   = s.getPropertyValue('outline-offset');
+        const shadow   = s.getPropertyValue('box-shadow');
+        if (outline && outline !== 'none') result.outline = outline;
+        if (offset && offset !== '0px')   result.outlineOffset = offset;
+        if (shadow && shadow !== 'none')   result.boxShadow = compressShadow(shadow);
+        if (Object.keys(result).length)    return result;
+      }
+    } catch (_) {}
+  }
+  return Object.keys(result).length ? result : null;
+}
+
+// ── Hover behaviour from CSS rule text ────────────────────────
+// Reads :hover rules from accessible stylesheets for interactive elements
+// and extracts the visual changes: transforms, shadow deltas, opacity.
+// Returns a human-readable summary of how interactive elements behave.
+function scrapeHoverBehaviour() {
+  const transforms  = [];
+  const shadows     = [];
+  const opacities   = [];
+  const transitions = [];
+
+  for (const sheet of document.styleSheets) {
+    try {
+      for (const rule of sheet.cssRules) {
+        if (!(rule instanceof CSSStyleRule)) continue;
+        const sel = rule.selectorText || '';
+        // Only hover rules on interactive-ish selectors
+        if (!sel.includes(':hover')) continue;
+        if (!/button|\.btn|a\b|role.*button|\[class.*btn/i.test(sel)) continue;
+
+        const s = rule.style;
+        const transform  = s.getPropertyValue('transform');
+        const shadow     = s.getPropertyValue('box-shadow');
+        const opacity    = s.getPropertyValue('opacity');
+        const transition = s.getPropertyValue('transition');
+
+        if (transform  && transform  !== 'none')  transforms.push(transform);
+        if (shadow     && shadow     !== 'none')   shadows.push(shadow);
+        if (opacity    && opacity    !== '')        opacities.push(parseFloat(opacity));
+        if (transition && transition !== 'none')   transitions.push(transition);
+      }
+    } catch (_) {}
+  }
+
+  if (!transforms.length && !shadows.length) return null;
+
+  const result = {};
+  if (transforms.length) result.transform  = [...new Set(transforms)][0];
+  if (shadows.length)    result.shadow      = compressShadow([...new Set(shadows)][0]);
+  if (opacities.length)  result.opacity     = Math.min(...opacities);
+  return result;
+}
+
+// ── Page structure / content architecture ─────────────────────
+// Identifies the sequence of section types on the page by inspecting
+// content patterns: CTA buttons, pricing keywords, form elements,
+// testimonial signals, feature lists. Returns an ordered section map.
+// This tells the AI the PAGE LAYOUT, not just the visual tokens.
+function scrapePageStructure() {
+  const sectionSels = 'section, [class*="section" i], main > div, main > article, body > div';
+  const els = [...document.querySelectorAll(sectionSels)].filter(el => {
+    if (!isVisible(el)) return false;
+    const r = el.getBoundingClientRect();
+    return r.width > window.innerWidth * 0.5 && r.height > 80;
+  });
+
+  // Dedupe nested sections — skip if parent already in the list
+  const deduped = els.filter(el =>
+    !els.some(other => other !== el && other.contains(el))
+  );
+
+  const classify = el => {
+    // Slice textContent to avoid slow string ops on giant sections
+    const text = (el.textContent || '').slice(0, 2000).toLowerCase();
+    const cls  = (el.className  || '').toLowerCase();
+    // Use offsetTop (distance from document top) NOT getBoundingClientRect().top
+    // (which is viewport-relative and breaks if the user scrolled before snapping)
+    const isFirstSection = el.offsetTop < 300;
+    const hasCTA        = !!el.querySelector('a[class*="btn" i], button:not([type="submit"]), [role="button"]');
+    const hasForm       = !!el.querySelector('form, input:not([type="hidden"])');
+    const hasHeading    = !!el.querySelector('h1, h2, h3');
+    const hasList       = !!el.querySelector('ul, ol');
+    const priceSignal   = /\$|€|£|price|plan|month|year|free|tier|paid/.test(text);
+    const testimonial   = /said|quote|review|testimonial|customer|loved|trust/.test(cls + text);
+    const faq           = /faq|frequen|question|answer/.test(cls + text);
+    const stats         = /\d+[k%+]/.test(text) && text.length < 400;
+
+    if (isFirstSection)           return 'hero';
+    if (priceSignal)              return 'pricing';
+    if (testimonial)              return 'testimonials';
+    if (faq)                      return 'faq';
+    if (stats && !hasHeading)     return 'social-proof';
+    if (hasForm && !hasHeading)   return 'newsletter';
+    if (hasForm)                  return 'contact';
+    if (hasCTA && !hasHeading && !hasList) return 'cta';
+    if (hasHeading && hasList)    return 'features';
+    if (hasHeading)               return 'section';
+    return null;
+  };
+
+  const sections = deduped
+    .map(classify)
+    .filter(Boolean)
+    .slice(0, 10);
+
+  // Dedupe consecutive identical types
+  const compressed = sections.filter((s, i) => s !== sections[i - 1]);
+
+  return compressed.length >= 2 ? compressed : null;
+}
+
+// ── Z-index stacking layers ───────────────────────────────────
+// Walks all positioned elements, reads computed z-index, guesses the
+// semantic role from class names and position type, returns a sorted
+// layer map. Reveals the layering vocabulary of the design system.
+function scrapeZIndexScale() {
+  const layers = new Map();
+
+  document.querySelectorAll('*').forEach(el => {
+    const s = getComputedStyle(el);
+    if (s.position === 'static') return;
+    const z = parseInt(s.zIndex);
+    if (isNaN(z) || z <= 0) return;
+
+    const cls = (el.className || '').toString().toLowerCase();
+    const tag = el.tagName.toLowerCase();
+    let role = 'element';
+    if (/modal|dialog|overlay|lightbox/.test(cls) || tag === 'dialog') role = 'modal';
+    else if (/tooltip|tip|popover/.test(cls))    role = 'tooltip';
+    else if (/dropdown|menu|select/.test(cls))   role = 'dropdown';
+    else if (s.position === 'fixed' || /sticky|fixed|header|topbar|navbar/.test(cls)) role = 'nav';
+    else if (/toast|snack|notif|alert|banner/.test(cls)) role = 'notification';
+    else if (/backdrop|scrim/.test(cls))         role = 'backdrop';
+
+    // Keep the highest z per role
+    if (!layers.has(role) || layers.get(role) < z) layers.set(role, z);
+  });
+
+  if (!layers.size) return null;
+
+  return [...layers.entries()]
+    .sort((a, b) => a[1] - b[1])
+    .map(([role, z]) => ({ role, z }));
+}
+
+// ── Active state styles ───────────────────────────────────────
+// Reads :active CSS rules for interactive selectors — extracts the
+// micro-feedback moment (scale down, opacity drop, shadow collapse).
+// Paired with hover + focus this completes the full interaction model.
+function scrapeActiveStates() {
+  const result = {};
+
+  for (const sheet of document.styleSheets) {
+    try {
+      for (const rule of sheet.cssRules) {
+        if (!(rule instanceof CSSStyleRule)) continue;
+        const sel = rule.selectorText || '';
+        if (!sel.includes(':active')) continue;
+        if (!/button|\.btn|a\b|role.*button/i.test(sel)) continue;
+
+        const s = rule.style;
+        const transform = s.getPropertyValue('transform');
+        const opacity   = s.getPropertyValue('opacity');
+        const shadow    = s.getPropertyValue('box-shadow');
+        const scale     = s.getPropertyValue('scale');
+
+        if (transform && transform !== 'none') result.transform = transform;
+        if (scale     && scale     !== 'none') result.scale     = scale;
+        if (opacity   && opacity   !== '')     result.opacity   = parseFloat(opacity);
+        if (shadow    && shadow    !== 'none') result.boxShadow = compressShadow(shadow);
+
+        if (Object.keys(result).length) return result;
+      }
+    } catch (_) {}
+  }
+
+  return Object.keys(result).length ? result : null;
+}
+
+// ── Responsive component behaviour ───────────────────────────
+// Walks every @media rule in accessible stylesheets looking for
+// component-targeting rules (button, input, card etc.) — extracts
+// which properties change at which breakpoint.
+// Returns: { "768": [{ selector, changes }], "600": [...] }
+function scrapeResponsiveComponents() {
+  const result = {};
+  const componentPattern = /button|\.btn|input|textarea|form|\.card|nav\b|header\b/i;
+
+  for (const sheet of document.styleSheets) {
+    try {
+      for (const rule of sheet.cssRules) {
+        if (!(rule instanceof CSSMediaRule)) continue;
+        const mediaText = rule.conditionText || rule.media?.mediaText || '';
+        const maxW = mediaText.match(/max-width:\s*(\d+)px/)?.[1];
+        if (!maxW) continue;
+
+        for (const inner of rule.cssRules) {
+          if (!(inner instanceof CSSStyleRule)) continue;
+          const sel = inner.selectorText || '';
+          if (!componentPattern.test(sel)) continue;
+
+          const s = inner.style;
+          const changes = {};
+          ['font-size','padding','width','display','flex-direction',
+           'border-radius','gap','height','min-height'].forEach(prop => {
+            const v = s.getPropertyValue(prop);
+            if (v) changes[prop] = v;
+          });
+
+          if (!Object.keys(changes).length) continue;
+          if (!result[maxW]) result[maxW] = [];
+          // Trim selector for readability
+          const shortSel = sel.replace(/\s+/g,' ').slice(0, 48);
+          result[maxW].push({ selector: shortSel, changes });
+        }
+      }
+    } catch (_) {}
+  }
+
+  return Object.keys(result).length ? result : null;
+}
+
+// ── CSS custom property extraction ────────────────────────────
+// Reads declared --variables from :root / html rules in every accessible
+// stylesheet, resolves their computed values (so var() references resolve),
+// then buckets them by semantic category based on naming patterns.
+// Cross-origin stylesheets are silently skipped.
+function scrapeCSSVariables() {
+  const computed = getComputedStyle(document.documentElement);
+  const raw = {};
+
+  for (const sheet of document.styleSheets) {
+    try {
+      for (const rule of sheet.cssRules) {
+        if (!(rule instanceof CSSStyleRule)) continue;
+        const sel = (rule.selectorText || '').trim();
+        // Only pull from the global scope where design tokens live
+        if (sel !== ':root' && sel !== 'html' && sel !== '*' &&
+            sel !== 'html,:root' && sel !== ':root,html') continue;
+        for (let i = 0; i < rule.style.length; i++) {
+          const prop = rule.style[i];
+          if (!prop.startsWith('--')) continue;
+          const val = computed.getPropertyValue(prop).trim();
+          if (val) raw[prop] = val;
+        }
+      }
+    } catch (_) {
+      // Cross-origin stylesheet — skip
+    }
+  }
+
+  if (!Object.keys(raw).length) return null;
+
+  const colors = {}, spacing = {}, radii = {}, fonts = {}, motion = {}, shadows = {};
+
+  for (const [key, val] of Object.entries(raw)) {
+    const k = key.toLowerCase();
+    const isColorValue = /^#[0-9a-f]{3,8}$/i.test(val) || /^rgba?\(/.test(val) ||
+                         /^hsla?\(/.test(val) || /^color\(/.test(val);
+
+    if (isColorValue ||
+        /color|bg(?!-image)|background|text|border|fill|stroke|surface|primary|secondary|accent|muted|dim|brand|foreground|ring/.test(k)) {
+      colors[key] = val;
+    } else if (/shadow|elevation/.test(k)) {
+      shadows[key] = val;
+    } else if (/radius|rounded|corner/.test(k)) {
+      radii[key] = val;
+    } else if (/font|typeface|family/.test(k) && !/size|weight|height/.test(k)) {
+      fonts[key] = val;
+    } else if (/duration|ease|timing|motion|transition|animation|speed|delay/.test(k)) {
+      motion[key] = val;
+    } else if (/spacing|space|gap|size|padding|margin/.test(k)) {
+      spacing[key] = val;
+    }
+  }
+
+  // Only return categories that have actual content
+  const result = {};
+  if (Object.keys(colors).length)  result.colors  = colors;
+  if (Object.keys(spacing).length) result.spacing  = spacing;
+  if (Object.keys(radii).length)   result.radii    = radii;
+  if (Object.keys(fonts).length)   result.fonts    = fonts;
+  if (Object.keys(motion).length)  result.motion   = motion;
+  if (Object.keys(shadows).length) result.shadows  = shadows;
+
+  return Object.keys(result).length ? result : null;
+}
+
+// ── Per-heading-level typography ───────────────────────────────
+// Instead of a single "heading font" and "body font", sample each
+// structural level individually so the AI gets the full type system.
+function scrapeTypographyHierarchy() {
+  const levels = [
+    { sel: 'h1',                                                     role: 'h1'      },
+    { sel: 'h2',                                                     role: 'h2'      },
+    { sel: 'h3',                                                     role: 'h3'      },
+    { sel: 'h4',                                                     role: 'h4'      },
+    { sel: 'p',                                                      role: 'body'    },
+    { sel: 'code, pre, [class*="code" i], [class*="mono" i]',       role: 'code'    },
+    { sel: 'small, [class*="caption" i], [class*="label" i]',       role: 'caption' },
+  ];
+
+  const result = {};
+
+  for (const { sel, role } of levels) {
+    const el = [...document.querySelectorAll(sel)]
+      .find(e => isVisible(e) && (e.textContent?.trim().length || 0) > 1);
+    if (!el) continue;
+
+    const s = getComputedStyle(el);
+    const family = pickIntentFont(s.fontFamily);
+    if (!family) continue;
+
+    result[role] = {
+      family,
+      size:          s.fontSize,
+      weight:        s.fontWeight,
+      lineHeight:    normalizeLineHeight(s.lineHeight, s.fontSize) || null,
+      letterSpacing: (s.letterSpacing && s.letterSpacing !== 'normal' && s.letterSpacing !== '0px')
+                       ? s.letterSpacing : null,
+    };
+  }
+
+  return Object.keys(result).length ? result : null;
+}
+
+// ── Motion tokens ──────────────────────────────────────────────
+// Walk interactive elements and collect transition-duration and
+// timing-function values. Returns most-frequent durations + easings.
+function scrapeMotionTokens() {
+  const durations = new Map();
+  const easings   = new Map();
+
+  document.querySelectorAll(
+    'button, a[href], [role="button"], input, [class*="card" i], nav a'
+  ).forEach(el => {
+    if (!isVisible(el)) return;
+    const s = getComputedStyle(el);
+
+    (s.transitionDuration || '').split(',').map(v => v.trim()).forEach(d => {
+      if (d && d !== '0s') durations.set(d, (durations.get(d) || 0) + 1);
+    });
+    (s.transitionTimingFunction || '').split(',').map(v => v.trim()).forEach(e => {
+      // Skip the browser default "ease" — only report deliberate choices
+      if (e && e !== 'ease' && e !== 'initial') easings.set(e, (easings.get(e) || 0) + 1);
+    });
+  });
+
+  const topDurations = [...durations.entries()].sort((a, b) => b[1] - a[1]).map(([d]) => d).slice(0, 4);
+  const topEasings   = [...easings.entries()].sort((a, b) => b[1] - a[1]).map(([e]) => e).slice(0, 2);
+
+  return topDurations.length ? { durations: topDurations, easings: topEasings } : null;
+}
+
+// ── Responsive breakpoints ─────────────────────────────────────
+// Iterate CSSMediaRule entries in every accessible stylesheet and
+// extract px values from min-width / max-width conditions.
+function scrapeBreakpoints() {
+  const bps = new Set();
+
+  for (const sheet of document.styleSheets) {
+    try {
+      for (const rule of sheet.cssRules) {
+        if (!(rule instanceof CSSMediaRule)) continue;
+        const text = rule.conditionText || rule.media?.mediaText || '';
+        for (const m of text.matchAll(/(?:max|min)-width:\s*(\d+(?:\.\d+)?)px/g)) {
+          bps.add(parseInt(m[1]));
+        }
+      }
+    } catch (_) {
+      // Cross-origin — skip
+    }
+  }
+
+  return [...bps].sort((a, b) => a - b).slice(0, 8);
 }
 
 // ── Helpers ──
@@ -673,12 +1344,24 @@ function compressShadow(s) {
 
 function rgbToHex(rgb) {
   if (!rgb) return null;
-  if (rgb.startsWith('#')) return rgb.toUpperCase();
-  const m = rgb.match(/\d+/g);
+  if (rgb.startsWith('#')) {
+    // Must be exactly 6 hex chars — 7-char malformed values (#0000104) from
+    // CSS custom properties or browser quirks would produce wrong colors.
+    if (/^#[0-9a-fA-F]{6}$/.test(rgb)) return rgb.toUpperCase();
+    // Expand shorthand 3-char hex
+    if (/^#[0-9a-fA-F]{3}$/.test(rgb)) {
+      const [,a,b,c] = rgb;
+      return `#${a}${a}${b}${b}${c}${c}`.toUpperCase();
+    }
+    return null; // malformed (wrong length)
+  }
+  // [\d.]+ not \d+ — needed to capture decimal alpha values like rgba(0,0,0,0.6)
+  // With \d+ only, "0.6" splits into "0" and "6", reading alpha as 0 (fully transparent).
+  const m = rgb.match(/[\d.]+/g);
   if (!m || m.length < 3) return null;
   const [r, g, b] = m.map(Number);
-  if (m[3] !== undefined && Number(m[3]) === 0) return null;  // fully transparent
-  return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('').toUpperCase();
+  if (m[3] !== undefined && Number(m[3]) < 0.5) return null;  // transparent or semi-transparent
+  return '#' + [r, g, b].map(v => Math.round(v).toString(16).padStart(2, '0')).join('').toUpperCase();
 }
 
 function isColorDark(rgb) {
@@ -695,16 +1378,33 @@ function isColorDark(rgb) {
 // structural elements, walk up through transparent ancestors to find the real
 // rendered surface, and tally area-weighted votes for light vs dark.
 function detectPageIsDark() {
-  // The page background is what fills the viewport everywhere a child doesn't
-  // paint over it. That defines the page mode — not hero illustrations,
-  // absolutely-positioned dark sections, or chromatic decoration on top.
-  // Trust the rendered <html>/<body> background first; decoration is decoration.
+  // Trust html/body background first — it's the authoritative page canvas.
   const htmlBgDark = isOpaqueBgDark(getComputedStyle(document.documentElement).backgroundColor);
   if (htmlBgDark !== null) return htmlBgDark;
   const bodyBgDark = isOpaqueBgDark(getComputedStyle(document.body).backgroundColor);
   if (bodyBgDark !== null) return bodyBgDark;
 
-  // Both html and body are transparent — walk up from <main> to find any opaque bg.
+  // html + body both transparent — common pattern: body:white but a dark full-viewport
+  // section (Darkroom, Windsurf, Zentry). Sample major structural elements and check
+  // which ones cover ≥ 25% of the viewport; trust the first one with an opaque bg.
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const vpArea = vw * vh;
+  const structural = [
+    ...document.querySelectorAll(
+      'body > section, body > div, body > main, body > header, ' +
+      '[class*="hero" i], [class*="banner" i], [id*="hero" i], main > *:first-child'
+    )
+  ].slice(0, 24);
+  for (const el of structural) {
+    const r = el.getBoundingClientRect();
+    const ow = Math.max(0, Math.min(r.right, vw) - Math.max(r.left, 0));
+    const oh = Math.max(0, Math.min(r.bottom, vh) - Math.max(r.top, 0));
+    if ((ow * oh) / vpArea < 0.25) continue;
+    const bgResult = isOpaqueBgDark(getComputedStyle(el).backgroundColor);
+    if (bgResult !== null) return bgResult;
+  }
+
+  // Final fallback: walk up from <main>.
   const main = document.querySelector('main, [role="main"], #main, .main, #content, .content');
   if (main) {
     const rgb = walkUpForBackground(main);

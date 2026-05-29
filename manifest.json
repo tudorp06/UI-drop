@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "UIDrop",
-  "version": "1.0.1",
-  "description": "Extract any website's colors, fonts, spacing & components in one click. Send the design brief to Claude, Cursor or ChatGPT instantly.",
+  "version": "1.0.2",
+  "description": "Extract any website's colors, fonts, spacing & components in one click. Send the design brief to Claude, Cursor or ChatGPT instantly",
 
   "icons": {
     "16":  "icons/icon16.png",
@@ -24,18 +24,26 @@
     "activeTab",
     "scripting",
     "storage",
+    "unlimitedStorage",
     "clipboardWrite"
   ],
 
   "host_permissions": [
     "https://claude.ai/*",
-    "https://chatgpt.com/*"
+    "https://chatgpt.com/*",
+    "https://extensionpay.com/*"
   ],
 
   "background": {
-    "service_worker": "background.js",
-    "type": "module"
+    "service_worker": "background.js"
   },
+
+  "web_accessible_resources": [
+    {
+      "resources": ["library.html", "library.js", "icons/*"],
+      "matches":   ["<all_urls>"]
+    }
+  ],
 
   "content_scripts": []
 }
