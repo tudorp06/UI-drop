@@ -556,6 +556,187 @@ body.compare-mode .snap-check { display:flex; }
 @media(max-width:520px) {
   .snap-grid { grid-template-columns:1fr; }
 }
+
+/* ── QUICK-COPY HOVER BAR ── */
+.snap-thumb-wrap { position:relative; overflow:hidden; }
+.snap-quick-copy {
+  position:absolute; bottom:0; left:0; right:0;
+  background:rgba(7,9,15,0.93); backdrop-filter:blur(8px);
+  border-top:1px solid var(--line-2);
+  padding:7px 11px;
+  display:flex; align-items:center; gap:8px;
+  opacity:0; transform:translateY(4px);
+  transition:opacity .14s, transform .14s;
+  pointer-events:none; z-index:5;
+}
+.snap-card:hover .snap-quick-copy {
+  opacity:1; transform:translateY(0); pointer-events:auto;
+}
+.snap-qc-dot { width:11px; height:11px; border-radius:3px; flex-shrink:0; border:1px solid rgba(255,255,255,.12); }
+.snap-qc-hex { font-family:var(--font-m); font-size:10.5px; color:var(--text-dim); flex:1; letter-spacing:.3px; }
+.snap-qc-btn {
+  padding:2px 9px; border-radius:4px; flex-shrink:0;
+  background:rgba(138,109,255,.12); border:1px solid rgba(138,109,255,.25);
+  color:var(--purple); font-family:var(--font-b); font-size:10px; font-weight:600;
+  cursor:pointer; transition:background .12s;
+}
+.snap-qc-btn:hover { background:rgba(138,109,255,.24); }
+.snap-qc-btn.copied { color:#6dd4a7; background:rgba(109,212,167,.12); border-color:rgba(109,212,167,.25); }
+
+/* ── PIN BUTTON ── */
+.snap-pin {
+  position:absolute; top:10px; right:10px;
+  width:26px; height:26px; border-radius:7px;
+  background:rgba(7,9,15,.72); border:1px solid var(--line-2);
+  display:none; align-items:center; justify-content:center;
+  cursor:pointer; color:var(--faint);
+  backdrop-filter:blur(6px);
+  transition:all .14s; z-index:10;
+}
+.snap-card:hover .snap-pin { display:flex; }
+.snap-pin.on { display:flex; color:var(--gold); border-color:rgba(245,158,11,.38); background:rgba(245,158,11,.1); }
+.snap-pin:hover { color:var(--gold); border-color:rgba(245,158,11,.32); }
+body.compare-mode .snap-pin { display:none !important; }
+.snap-card.pinned { border-color:rgba(245,158,11,.22); }
+
+/* ── TAGS ON CARD ── */
+.snap-tags { display:flex; flex-wrap:wrap; gap:4px; margin-bottom:8px; }
+.snap-tag {
+  font-size:9.5px; font-weight:500; color:var(--muted);
+  background:rgba(120,150,230,.07); border:1px solid rgba(120,150,230,.14);
+  border-radius:4px; padding:2px 7px; letter-spacing:-.05px;
+}
+
+/* ── TAG FILTER BAR ── */
+.tag-filter-bar {
+  display:flex; align-items:center; gap:6px;
+  padding:7px 28px; border-bottom:1px solid var(--line);
+  overflow-x:auto; scrollbar-width:none; background:rgba(7,9,15,.92);
+  transition:max-height .2s;
+}
+.tag-filter-bar.empty { display:none; }
+.tag-filter-bar::-webkit-scrollbar { display:none; }
+.tag-filter-label {
+  font-family:var(--font-m); font-size:9px; font-weight:600;
+  letter-spacing:.7px; text-transform:uppercase; color:var(--faint);
+  white-space:nowrap; flex-shrink:0; margin-right:2px;
+}
+.tag-chip {
+  flex-shrink:0; padding:3px 11px; border-radius:6px;
+  border:1px solid var(--line-2); background:transparent;
+  color:var(--muted); font-family:var(--font-b); font-size:11px; font-weight:500;
+  cursor:pointer; transition:all .12s; white-space:nowrap;
+}
+.tag-chip:hover { color:var(--text); border-color:rgba(120,150,230,.3); }
+.tag-chip.active { color:var(--purple); background:rgba(138,109,255,.1); border-color:rgba(138,109,255,.3); }
+
+/* ── COLLECTIONS BAR ── */
+.collections-bar {
+  display:flex; align-items:center; gap:7px;
+  padding:9px 28px; border-bottom:1px solid var(--line);
+  overflow-x:auto; scrollbar-width:none; background:var(--bg);
+}
+.collections-bar::-webkit-scrollbar { display:none; }
+.coll-chip {
+  flex-shrink:0; padding:5px 13px; border-radius:7px;
+  border:1px solid var(--line-2); background:transparent;
+  color:var(--muted); font-family:var(--font-b); font-size:12px; font-weight:500;
+  cursor:pointer; transition:all .12s; white-space:nowrap;
+  display:flex; align-items:center; gap:6px;
+}
+.coll-chip.active { color:var(--text); background:rgba(120,150,230,.08); border-color:rgba(120,150,230,.28); }
+.coll-chip:hover:not(.active) { color:var(--text-dim); border-color:rgba(120,150,230,.2); }
+.coll-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+.coll-x { margin-left:2px; font-size:11px; opacity:.3; transition:opacity .12s; cursor:pointer; }
+.coll-chip:hover .coll-x { opacity:.7; }
+.coll-add {
+  flex-shrink:0; padding:5px 11px; border-radius:7px;
+  border:1px dashed rgba(120,150,230,.2); background:transparent;
+  color:var(--faint); font-family:var(--font-b); font-size:11px;
+  cursor:pointer; transition:all .12s;
+  display:flex; align-items:center; gap:5px;
+}
+.coll-add:hover { color:var(--text-dim); border-color:rgba(120,150,230,.35); }
+.coll-create-wrap { display:none; align-items:center; gap:5px; flex-shrink:0; }
+.coll-create-wrap.visible { display:flex; }
+.coll-create-input {
+  background:var(--card); border:1px solid rgba(138,109,255,.35);
+  border-radius:6px; color:var(--text); font-family:var(--font-b);
+  font-size:12px; padding:4px 10px; width:130px; outline:none;
+}
+.coll-create-ok {
+  padding:4px 10px; border-radius:6px;
+  background:rgba(138,109,255,.18); border:1px solid rgba(138,109,255,.32);
+  color:var(--purple); font-family:var(--font-b); font-size:11px; font-weight:600;
+  cursor:pointer;
+}
+
+/* ── INSIGHTS MODAL ── */
+.insights-modal {
+  position:fixed; inset:0; z-index:600;
+  background:rgba(7,9,15,.88); backdrop-filter:blur(16px);
+  display:flex; align-items:center; justify-content:center; padding:24px;
+}
+.insights-modal.hidden { display:none; }
+.insights-card {
+  background:var(--card); border:1px solid var(--line-2);
+  border-radius:20px; padding:32px; max-width:480px; width:100%;
+  max-height:80vh; overflow-y:auto;
+  scrollbar-width:thin; scrollbar-color:rgba(138,109,255,.25) transparent;
+}
+.insights-head { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:6px; }
+.insights-title { font-family:var(--font-h); font-size:20px; font-weight:800; letter-spacing:-.5px; }
+.insights-close { background:none; border:none; cursor:pointer; color:var(--muted); font-size:20px; line-height:1; padding:0; transition:color .14s; }
+.insights-close:hover { color:var(--text); }
+.insights-meta { font-size:12px; color:var(--muted); margin-bottom:24px; }
+.insights-section { margin-bottom:22px; }
+.insights-section-label {
+  font-family:var(--font-m); font-size:9px; font-weight:600;
+  letter-spacing:.7px; text-transform:uppercase; color:var(--muted); margin-bottom:12px;
+}
+.insights-row { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+.insights-name { font-size:12.5px; font-weight:500; color:var(--text); min-width:100px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.insights-bar { flex:1; height:5px; background:var(--card-2); border-radius:3px; overflow:hidden; }
+.insights-fill { height:100%; border-radius:3px; background:var(--purple); transition:width .4s ease; }
+.insights-num { font-family:var(--font-m); font-size:10px; color:var(--faint); min-width:36px; text-align:right; }
+
+/* ── DETAIL: TAGS + COLLECTION ── */
+.detail-tag-section { max-width:780px; padding:16px 0 0; }
+.detail-tag-label {
+  font-family:var(--font-m); font-size:9px; font-weight:600;
+  letter-spacing:1px; text-transform:uppercase; color:var(--muted); margin-bottom:10px;
+}
+.detail-tags-row { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; min-height:22px; }
+.detail-tag {
+  display:flex; align-items:center; gap:5px;
+  padding:3px 9px; border-radius:6px;
+  background:rgba(120,150,230,.07); border:1px solid rgba(120,150,230,.18);
+  font-family:var(--font-b); font-size:11.5px; font-weight:500; color:var(--text-dim);
+}
+.detail-tag-x { cursor:pointer; opacity:.35; font-size:13px; line-height:1; transition:opacity .12s; }
+.detail-tag-x:hover { opacity:1; color:#f87171; }
+.detail-tag-input-wrap { display:flex; gap:6px; margin-bottom:14px; }
+.detail-tag-input {
+  flex:1; background:var(--card-2); border:1px solid var(--line-2);
+  border-radius:7px; color:var(--text); font-family:var(--font-b);
+  font-size:12px; padding:6px 12px; outline:none; transition:border-color .15s;
+}
+.detail-tag-input:focus { border-color:rgba(138,109,255,.4); }
+.detail-tag-input::placeholder { color:var(--faint); }
+.detail-tag-add {
+  padding:6px 14px; border-radius:7px;
+  background:rgba(138,109,255,.12); border:1px solid rgba(138,109,255,.25);
+  color:var(--purple); font-family:var(--font-b); font-size:12px; font-weight:600;
+  cursor:pointer; transition:background .12s;
+}
+.detail-tag-add:hover { background:rgba(138,109,255,.22); }
+.detail-coll-select {
+  width:100%; background:var(--card-2); border:1px solid var(--line-2);
+  border-radius:7px; color:var(--text-dim); font-family:var(--font-b);
+  font-size:12px; padding:7px 12px; outline:none; cursor:pointer;
+  transition:border-color .15s; appearance:none;
+}
+.detail-coll-select:focus { border-color:rgba(138,109,255,.4); }
 </style>
 </head>
 <body>
@@ -594,6 +775,10 @@ body.compare-mode .snap-check { display:flex; }
     </svg>
   </button>
 
+  <button class="topbar-icon-btn" id="insightsBtn" title="Library insights">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+  </button>
+
   <button class="topbar-icon-btn" id="viewToggleBtn" title="Toggle moodboard view">
     <!-- grid icon (default) -->
     <svg class="view-icon-grid" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
@@ -613,6 +798,24 @@ body.compare-mode .snap-check { display:flex; }
   <span class="compare-hint-text">Select <span class="compare-hint-count" id="hintCount">0</span> / 2 snaps to compare</span>
   <button class="compare-hint-cancel" id="cancelCompareMode">Exit mode</button>
   <button class="compare-hint-go" id="goCompare" disabled>Compare →</button>
+</div>
+
+<!-- Collections bar -->
+<div class="collections-bar" id="collectionsBar">
+  <button class="coll-chip active" data-coll="all">All snaps</button>
+  <div class="coll-create-wrap" id="collCreateWrap">
+    <input class="coll-create-input" id="collCreateInput" placeholder="Collection name…" maxlength="30"/>
+    <button class="coll-create-ok" id="collCreateOk">Add</button>
+  </div>
+  <button class="coll-add" id="collAddBtn">
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    New
+  </button>
+</div>
+
+<!-- Tag filter bar -->
+<div class="tag-filter-bar empty" id="tagFilterBar">
+  <span class="tag-filter-label">Filter</span>
 </div>
 
 <!-- Main content -->
@@ -695,6 +898,18 @@ body.compare-mode .snap-check { display:flex; }
     <button class="pay-gate-cta" id="payBtn">Unlock Lifetime Access →</button>
     <button class="pay-gate-login" id="payLoginBtn">Already paid? Sign in</button>
 
+  </div>
+</div>
+
+<!-- Insights modal -->
+<div class="insights-modal hidden" id="insightsModal">
+  <div class="insights-card">
+    <div class="insights-head">
+      <h2 class="insights-title">Library Insights</h2>
+      <button class="insights-close" id="insightsClose">×</button>
+    </div>
+    <p class="insights-meta" id="insightsMeta"></p>
+    <div id="insightsBody"></div>
   </div>
 </div>
 

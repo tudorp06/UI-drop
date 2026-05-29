@@ -2,12 +2,17 @@
 // UIDrop — library.js  (Snap Library)
 // ============================================================
 
-let allSnaps      = [];
-let filteredSnaps = [];
-let selectedIds   = new Set();   // max 2 when in compare mode
-let compareModeOn = false;
-let viewMode      = 'grid';      // 'grid' | 'moodboard'
-let starredOnly   = false;
+let allSnaps          = [];
+let filteredSnaps     = [];
+let selectedIds       = new Set();
+let compareModeOn     = false;
+let viewMode          = 'grid';
+let starredOnly       = false;
+let activeTags        = new Set();
+let activeCollectionId= null;           // null = "All snaps"
+let collections       = [];             // [{id, name, color}]
+
+const COLL_COLORS = ['#8a6dff','#5b8def','#ff6b2b','#10b981','#f59e0b','#ec4899'];
 
 // ── ExtensionPay ─────────────────────────────────────────────
 const extpay = ExtPay('uidrop'); // ← same app name as background.js
@@ -25,9 +30,20 @@ async function init() {
 
     // ── Paid — load library normally ──────────────────────────
     const { snapHistory = [] } = await chrome.storage.local.get('snapHistory');
-    allSnaps      = snapHistory;
+    allSnaps = snapHistory;
+
+    // Auto-tag any snaps that have no tags yet
+    let needsSave = false;
+    allSnaps.forEach(s => {
+        if (!s.tags) { s.tags = autoTags(s); needsSave = true; }
+    });
+    if (needsSave) await chrome.storage.local.set({ snapHistory: allSnaps });
+
     filteredSnaps = [...allSnaps];
 
+    await loadCollections();
+    renderCollectionsBar();
+    renderTagFilterBar();
     renderGrid();
 
     document.getElementById('searchInput')      .addEventListener('input',  onSearch);
@@ -38,6 +54,21 @@ async function init() {
     document.getElementById('detailBackBtn')    .addEventListener('click',  closeDetail);
     document.getElementById('starFilterBtn')    .addEventListener('click',  toggleStarFilter);
     document.getElementById('viewToggleBtn')    .addEventListener('click',  toggleViewMode);
+    document.getElementById('insightsBtn')      .addEventListener('click',  showInsightsModal);
+    document.getElementById('insightsClose')    .addEventListener('click',  () => document.getElementById('insightsModal').classList.add('hidden'));
+    document.getElementById('insightsModal')    .addEventListener('click',  e => { if (e.target === e.currentTarget) e.currentTarget.classList.add('hidden'); });
+
+    // Collections bar controls
+    document.getElementById('collAddBtn').addEventListener('click', () => {
+        const wrap = document.getElementById('collCreateWrap');
+        wrap.classList.toggle('visible');
+        if (wrap.classList.contains('visible')) document.getElementById('collCreateInput').focus();
+    });
+    document.getElementById('collCreateOk').addEventListener('click', commitNewCollection);
+    document.getElementById('collCreateInput').addEventListener('keydown', e => {
+        if (e.key === 'Enter') commitNewCollection();
+        if (e.key === 'Escape') document.getElementById('collCreateWrap').classList.remove('visible');
+    });
 }
 
 function showPayGate() {
@@ -63,14 +94,17 @@ function onSearch(e) {
 }
 
 function applyFilters(q = document.getElementById('searchInput').value.trim().toLowerCase()) {
-    let base = starredOnly ? allSnaps.filter(s => s.starred) : [...allSnaps];
-    filteredSnaps = q
-        ? base.filter(s =>
-            s.siteName?.toLowerCase().includes(q) ||
-            s.pageTitle?.toLowerCase().includes(q) ||
-            s.recommendation?.some(r => r.type?.toLowerCase().includes(q))
-          )
-        : base;
+    let base = [...allSnaps];
+    if (starredOnly)           base = base.filter(s => s.starred);
+    if (activeCollectionId)    base = base.filter(s => s.collectionId === activeCollectionId);
+    if (activeTags.size)       base = base.filter(s => [...activeTags].every(t => (s.tags||[]).includes(t)));
+    if (q) base = base.filter(s =>
+        s.siteName?.toLowerCase().includes(q) ||
+        s.pageTitle?.toLowerCase().includes(q) ||
+        (s.tags||[]).some(t => t.includes(q)) ||
+        s.recommendation?.some(r => r.type?.toLowerCase().includes(q))
+    );
+    filteredSnaps = base;
     renderGrid();
 }
 
@@ -124,25 +158,33 @@ function renderGrid() {
     }
 
     grid.className = 'snap-grid';
-    grid.innerHTML = filteredSnaps.map(snapCardHTML).join('');
+    // Pinned snaps always float to the top
+    const sorted = [...filteredSnaps].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
+    grid.innerHTML = sorted.map(snapCardHTML).join('');
 
     grid.querySelectorAll('.snap-card').forEach(card => {
         const id = card.dataset.id;
-        card.querySelector('.snap-star').addEventListener('click', e => {
-            e.stopPropagation();
-            toggleStar(id);
-        });
-        // Trash button — always available, never enters compare/detail flow
-        card.querySelector('.snap-del').addEventListener('click', e => {
-            e.stopPropagation();
-            deleteSnap(id);
-        });
-        // Clicking the checkbox toggles selection (compare mode only)
-        card.querySelector('.snap-check').addEventListener('click', e => {
-            e.stopPropagation();
-            if (compareModeOn) toggleSelect(id);
-        });
-        // Normal mode → open detail view. Compare mode → toggle selection.
+        card.querySelector('.snap-star').addEventListener('click', e => { e.stopPropagation(); toggleStar(id); });
+        card.querySelector('.snap-del') .addEventListener('click', e => { e.stopPropagation(); deleteSnap(id); });
+        card.querySelector('.snap-check').addEventListener('click', e => { e.stopPropagation(); if (compareModeOn) toggleSelect(id); });
+        card.querySelector('.snap-pin') ?.addEventListener('click', e => { e.stopPropagation(); togglePin(id); });
+
+        // Quick-copy button
+        const qcBtn = card.querySelector('.snap-qc-btn');
+        if (qcBtn) {
+            qcBtn.addEventListener('click', e => {
+                e.stopPropagation();
+                const snap = allSnaps.find(s => s.id === id);
+                const hex  = snap?.schema?.primaryColor;
+                if (!hex) return;
+                navigator.clipboard.writeText(hex).then(() => {
+                    qcBtn.textContent = '✓';
+                    qcBtn.classList.add('copied');
+                    setTimeout(() => { qcBtn.textContent = 'Copy'; qcBtn.classList.remove('copied'); }, 1400);
+                });
+            });
+        }
+
         card.addEventListener('click', () => {
             if (compareModeOn) toggleSelect(id);
             else openDetail(id);
@@ -164,7 +206,8 @@ function snapCardHTML(snap) {
         snap.schema?.mutedText,
     ].filter(isHex);
 
-    const thumbHTML = snap.thumbnail
+    const primaryColor = snap.schema?.primaryColor || null;
+    const thumbInner = snap.thumbnail
         ? `<img class="snap-thumb" src="${snap.thumbnail}" alt="${escHtml(snap.siteName)}" loading="lazy"/>`
         : `<div class="snap-thumb-ph">
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.1">
@@ -174,8 +217,23 @@ function snapCardHTML(snap) {
             </svg>
            </div>`;
 
+    const thumbHTML = `
+      <div class="snap-thumb-wrap">
+        ${thumbInner}
+        ${primaryColor ? `
+        <div class="snap-quick-copy">
+          <div class="snap-qc-dot" style="background:${primaryColor}"></div>
+          <span class="snap-qc-hex">${primaryColor.toUpperCase()}</span>
+          <button class="snap-qc-btn">Copy</button>
+        </div>` : ''}
+      </div>`;
+
+    const tagsHTML = (snap.tags||[]).length
+        ? `<div class="snap-tags">${snap.tags.map(t => `<span class="snap-tag">${escHtml(t)}</span>`).join('')}</div>`
+        : '';
+
     return `
-    <div class="snap-card${isSelected ? ' selected' : ''}" data-id="${snap.id}">
+    <div class="snap-card${isSelected ? ' selected' : ''}${snap.pinned ? ' pinned' : ''}" data-id="${snap.id}">
       ${thumbHTML}
       <button class="snap-del" title="Remove snap">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -185,6 +243,9 @@ function snapCardHTML(snap) {
       <div class="snap-check">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
       </div>
+      <button class="snap-pin${snap.pinned ? ' on' : ''}" title="${snap.pinned ? 'Unpin' : 'Pin to top'}">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="${snap.pinned ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v3.76z"/></svg>
+      </button>
       <div class="snap-body">
         <div class="snap-site-row">
           <div class="snap-site">${escHtml(snap.siteName || 'Unknown site')}</div>
@@ -195,6 +256,7 @@ function snapCardHTML(snap) {
           </button>
         </div>
         <div class="snap-date">${date}</div>
+        ${tagsHTML}
         <div class="snap-palette">
           ${palette.map(c => `<div class="snap-swatch" style="background:${c}" title="${c}"></div>`).join('')}
         </div>
@@ -273,7 +335,23 @@ function openDetail(id) {
     document.getElementById('detailPanel').innerHTML =
         panelHTML(snap, {}) +
         `<div class="detail-actions">
-           <div class="detail-export-label">Export as</div>
+           <!-- Tag management -->
+           <div class="detail-tag-section">
+             <div class="detail-tag-label">Tags</div>
+             <div class="detail-tags-row" id="detailTagsRow"></div>
+             <div class="detail-tag-input-wrap">
+               <input class="detail-tag-input" id="detailTagInput" placeholder="Add a tag…" maxlength="24"/>
+               <button class="detail-tag-add" id="detailTagAdd">+ Add</button>
+             </div>
+             ${collections.length ? `
+             <div class="detail-tag-label" style="margin-top:4px;">Move to collection</div>
+             <select class="detail-coll-select" id="detailCollSelect">
+               <option value="">— No collection —</option>
+               ${collections.map(c => `<option value="${c.id}"${snap.collectionId === c.id ? ' selected' : ''}>${escHtml(c.name)}</option>`).join('')}
+             </select>` : ''}
+           </div>
+
+           <div class="detail-export-label" style="margin-top:16px;">Export as</div>
            <div class="detail-export-row">
              <button class="detail-export-btn" id="detailExportFigma">
                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="9" height="9" rx="2"/><rect x="13" y="2" width="9" height="9" rx="2"/><rect x="2" y="13" width="9" height="9" rx="2"/><circle cx="17.5" cy="17.5" r="4.5"/></svg>
@@ -286,6 +364,10 @@ function openDetail(id) {
              <button class="detail-export-btn" id="detailExportCanva">
                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="4.93" y1="4.93" x2="9.17" y2="9.17"/><line x1="14.83" y1="14.83" x2="19.07" y2="19.07"/><line x1="14.83" y1="9.17" x2="19.07" y2="4.93"/><line x1="4.93" y1="19.07" x2="9.17" y2="14.83"/></svg>
                Canva
+             </button>
+             <button class="detail-export-btn" id="detailExportPoster">
+               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5-4 4-2-2-5 5"/></svg>
+               Poster PNG
              </button>
            </div>
            <div class="detail-send-label">Send to</div>
@@ -338,6 +420,47 @@ function openDetail(id) {
     });
     document.getElementById('detailExportCanva').addEventListener('click', () => {
         navigator.clipboard.writeText(buildCanvaPalette(snap)).then(() => flashExport('detailExportCanva', 'Copied!'));
+    });
+    document.getElementById('detailExportPoster').addEventListener('click', () => {
+        exportPalettePoster(snap);
+    });
+
+    // ── Tags ──────────────────────────────────────────────────
+    function renderDetailTags() {
+        const row = document.getElementById('detailTagsRow');
+        if (!row) return;
+        row.innerHTML = (snap.tags||[]).map(t =>
+            `<span class="detail-tag">${escHtml(t)}<span class="detail-tag-x" data-tag="${escHtml(t)}">×</span></span>`
+        ).join('') || `<span style="font-size:11px;color:var(--faint)">No tags yet</span>`;
+        row.querySelectorAll('.detail-tag-x').forEach(x => {
+            x.addEventListener('click', async () => {
+                await removeTag(snap.id, x.dataset.tag);
+                snap.tags = allSnaps.find(s => s.id === snap.id)?.tags || [];
+                renderDetailTags();
+                renderTagFilterBar();
+            });
+        });
+    }
+    renderDetailTags();
+
+    const tagInput = document.getElementById('detailTagInput');
+    const addTagFn = async () => {
+        const val = tagInput?.value.trim().toLowerCase().replace(/\s+/g,'-');
+        if (!val || (snap.tags||[]).includes(val)) { if (tagInput) tagInput.value=''; return; }
+        await addTag(snap.id, val);
+        snap.tags = allSnaps.find(s => s.id === snap.id)?.tags || [];
+        if (tagInput) tagInput.value = '';
+        renderDetailTags();
+        renderTagFilterBar();
+    };
+    document.getElementById('detailTagAdd')?.addEventListener('click', addTagFn);
+    tagInput?.addEventListener('keydown', e => { if (e.key === 'Enter') addTagFn(); });
+
+    // ── Move to collection ────────────────────────────────────
+    document.getElementById('detailCollSelect')?.addEventListener('change', async e => {
+        await saveSnapField(snap.id, { collectionId: e.target.value || null });
+        snap.collectionId = e.target.value || null;
+        applyFilters();
     });
 
     // Send to Claude
@@ -722,6 +845,345 @@ function escHtml(s) {
     return String(s ?? '').replace(/[&<>"']/g, c =>
         ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])
     );
+}
+
+// ── Auto-tags ─────────────────────────────────────────────────
+function autoTags(snap) {
+    const tags = [];
+    const s = snap.schema || {};
+    if (snap.isDark === true)  tags.push('dark');
+    if (snap.isDark === false) tags.push('light');
+
+    // Roundness
+    if (s.radius) {
+        if (/999|pill/i.test(s.radius))              tags.push('pill');
+        else if (/^[0-3]px|0px/.test(s.radius))      tags.push('sharp');
+        else if (/1[6-9]px|2\d+px/.test(s.radius))   tags.push('rounded');
+    }
+
+    // Vibe
+    if (s.vibe) tags.push(s.vibe.toLowerCase().replace(/\s+/g, '-'));
+
+    // Gradient
+    if (s.gradient) tags.push('gradient');
+
+    // Font category
+    const hf = (s.headingFont || '').toLowerCase();
+    if (/serif(?!less)/.test(hf) && !/sans/.test(hf)) tags.push('serif');
+    else if (/mono/.test(hf))                          tags.push('monospace');
+
+    return [...new Set(tags)];
+}
+
+// ── Tag CRUD ──────────────────────────────────────────────────
+async function addTag(id, tag) {
+    const snap = allSnaps.find(s => s.id === id);
+    if (!snap) return;
+    snap.tags = [...new Set([...(snap.tags||[]), tag])];
+    await saveSnapField(id, { tags: snap.tags });
+}
+
+async function removeTag(id, tag) {
+    const snap = allSnaps.find(s => s.id === id);
+    if (!snap) return;
+    snap.tags = (snap.tags||[]).filter(t => t !== tag);
+    await saveSnapField(id, { tags: snap.tags });
+}
+
+// ── Pin ───────────────────────────────────────────────────────
+async function togglePin(id) {
+    const snap = allSnaps.find(s => s.id === id);
+    if (!snap) return;
+    snap.pinned = !snap.pinned;
+    await saveSnapField(id, { pinned: snap.pinned });
+    applyFilters();
+}
+
+// ── Generic snap field updater ────────────────────────────────
+async function saveSnapField(id, changes) {
+    const { snapHistory = [] } = await chrome.storage.local.get('snapHistory');
+    const updated = snapHistory.map(s => s.id === id ? { ...s, ...changes } : s);
+    allSnaps = allSnaps.map(s => s.id === id ? { ...s, ...changes } : s);
+    await chrome.storage.local.set({ snapHistory: updated });
+}
+
+// ── Collections ───────────────────────────────────────────────
+async function loadCollections() {
+    const { snapCollections = [] } = await chrome.storage.local.get('snapCollections');
+    collections = snapCollections;
+}
+
+async function saveCollections() {
+    await chrome.storage.local.set({ snapCollections: collections });
+}
+
+function commitNewCollection() {
+    const input = document.getElementById('collCreateInput');
+    const name  = input.value.trim();
+    if (!name) return;
+    const color = COLL_COLORS[collections.length % COLL_COLORS.length];
+    collections.push({ id: Date.now().toString(), name, color });
+    saveCollections();
+    input.value = '';
+    document.getElementById('collCreateWrap').classList.remove('visible');
+    renderCollectionsBar();
+}
+
+function renderCollectionsBar() {
+    const bar = document.getElementById('collectionsBar');
+    const existingChips = bar.querySelectorAll('.coll-chip');
+    existingChips.forEach(c => c.remove());
+
+    // "All snaps" chip
+    const allChip = document.createElement('button');
+    allChip.className = `coll-chip${!activeCollectionId ? ' active' : ''}`;
+    allChip.dataset.coll = 'all';
+    allChip.textContent = 'All snaps';
+    allChip.addEventListener('click', () => { activeCollectionId = null; renderCollectionsBar(); applyFilters(); });
+    bar.insertBefore(allChip, bar.firstChild);
+
+    // Collection chips
+    collections.forEach(c => {
+        const chip = document.createElement('button');
+        chip.className = `coll-chip${activeCollectionId === c.id ? ' active' : ''}`;
+        chip.innerHTML = `<span class="coll-dot" style="background:${c.color}"></span>${escHtml(c.name)}<span class="coll-x" title="Delete collection">×</span>`;
+        chip.addEventListener('click', e => {
+            if (e.target.classList.contains('coll-x')) {
+                if (!confirm(`Delete collection "${c.name}"?`)) return;
+                collections = collections.filter(x => x.id !== c.id);
+                saveCollections();
+                allSnaps.forEach(s => { if (s.collectionId === c.id) saveSnapField(s.id, { collectionId: null }); });
+                if (activeCollectionId === c.id) activeCollectionId = null;
+                renderCollectionsBar(); applyFilters();
+            } else {
+                activeCollectionId = c.id;
+                renderCollectionsBar(); applyFilters();
+            }
+        });
+        bar.insertBefore(chip, document.getElementById('collCreateWrap'));
+    });
+}
+
+// ── Tag filter bar ────────────────────────────────────────────
+function renderTagFilterBar() {
+    const bar = document.getElementById('tagFilterBar');
+    // Collect all unique tags across library
+    const allTags = [...new Set(allSnaps.flatMap(s => s.tags||[]))].sort();
+    if (!allTags.length) { bar.classList.add('empty'); return; }
+    bar.classList.remove('empty');
+
+    bar.innerHTML = `<span class="tag-filter-label">Filter</span>` +
+        allTags.map(t =>
+            `<button class="tag-chip${activeTags.has(t) ? ' active' : ''}" data-tag="${escHtml(t)}">${escHtml(t)}</button>`
+        ).join('');
+
+    bar.querySelectorAll('.tag-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+            const t = chip.dataset.tag;
+            activeTags.has(t) ? activeTags.delete(t) : activeTags.add(t);
+            chip.classList.toggle('active', activeTags.has(t));
+            applyFilters();
+        });
+    });
+}
+
+// ── Insights modal ────────────────────────────────────────────
+function showInsightsModal() {
+    const modal = document.getElementById('insightsModal');
+    const body  = document.getElementById('insightsBody');
+    const meta  = document.getElementById('insightsMeta');
+
+    meta.textContent = `${allSnaps.length} snap${allSnaps.length !== 1 ? 's' : ''} in your library`;
+
+    // Font frequency
+    const fontCount = {};
+    allSnaps.forEach(s => {
+        const fonts = [s.schema?.headingFont, s.schema?.bodyFont].filter(Boolean);
+        fonts.forEach(f => {
+            const name = f.split(/[\s,]+/)[0];
+            fontCount[name] = (fontCount[name] || 0) + 1;
+        });
+    });
+    const sortedFonts = Object.entries(fontCount).sort((a,b) => b[1]-a[1]).slice(0, 10);
+    const maxFont = sortedFonts[0]?.[1] || 1;
+
+    // Color frequency (primary colors)
+    const colorCount = {};
+    allSnaps.forEach(s => {
+        const p = s.schema?.primaryColor;
+        if (p) colorCount[p] = (colorCount[p] || 0) + 1;
+    });
+    const sortedColors = Object.entries(colorCount).sort((a,b) => b[1]-a[1]).slice(0, 8);
+
+    // Tag frequency
+    const tagCount = {};
+    allSnaps.forEach(s => (s.tags||[]).forEach(t => { tagCount[t] = (tagCount[t]||0) + 1; }));
+    const sortedTags = Object.entries(tagCount).sort((a,b) => b[1]-a[1]).slice(0, 10);
+    const maxTag = sortedTags[0]?.[1] || 1;
+
+    // Dark vs light
+    const darkCount  = allSnaps.filter(s => s.isDark === true).length;
+    const lightCount = allSnaps.filter(s => s.isDark === false).length;
+
+    body.innerHTML = `
+    ${sortedFonts.length ? `
+    <div class="insights-section">
+      <div class="insights-section-label">Most used fonts</div>
+      ${sortedFonts.map(([name, count]) => `
+        <div class="insights-row">
+          <span class="insights-name">${escHtml(name)}</span>
+          <div class="insights-bar"><div class="insights-fill" style="width:${Math.round(count/maxFont*100)}%"></div></div>
+          <span class="insights-num">${count}/${allSnaps.length}</span>
+        </div>`).join('')}
+    </div>` : ''}
+
+    ${sortedTags.length ? `
+    <div class="insights-section">
+      <div class="insights-section-label">Tag breakdown</div>
+      ${sortedTags.map(([tag, count]) => `
+        <div class="insights-row">
+          <span class="insights-name">${escHtml(tag)}</span>
+          <div class="insights-bar"><div class="insights-fill" style="width:${Math.round(count/maxTag*100)}%;background:var(--blue)"></div></div>
+          <span class="insights-num">${count}</span>
+        </div>`).join('')}
+    </div>` : ''}
+
+    ${(darkCount + lightCount) > 0 ? `
+    <div class="insights-section">
+      <div class="insights-section-label">Dark vs Light</div>
+      <div class="insights-row">
+        <span class="insights-name">🌙 Dark</span>
+        <div class="insights-bar"><div class="insights-fill" style="width:${Math.round(darkCount/allSnaps.length*100)}%;background:#8a6dff"></div></div>
+        <span class="insights-num">${darkCount}</span>
+      </div>
+      <div class="insights-row">
+        <span class="insights-name">☀️ Light</span>
+        <div class="insights-bar"><div class="insights-fill" style="width:${Math.round(lightCount/allSnaps.length*100)}%;background:#f59e0b"></div></div>
+        <span class="insights-num">${lightCount}</span>
+      </div>
+    </div>` : ''}
+
+    ${sortedColors.length > 1 ? `
+    <div class="insights-section">
+      <div class="insights-section-label">Primary colors</div>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;">
+        ${sortedColors.map(([hex, count]) => `
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+            <div style="width:36px;height:36px;border-radius:8px;background:${hex};border:1px solid rgba(255,255,255,.08);" title="${hex}"></div>
+            <span style="font-family:var(--font-m);font-size:9px;color:var(--faint);">${count}×</span>
+          </div>`).join('')}
+      </div>
+    </div>` : ''}
+    `;
+
+    modal.classList.remove('hidden');
+}
+
+// ── Palette poster export (Canvas PNG) ───────────────────────
+function exportPalettePoster(snap) {
+    const s = snap.schema || {};
+    const colors = [
+        { label:'primary',  hex: s.primaryColor },
+        { label:'accent',   hex: s.accentColor },
+        { label:'surface',  hex: s.surfaceColor },
+        { label:'elevated', hex: s.elevatedSurface },
+        { label:'text',     hex: s.textColor },
+        { label:'muted',    hex: s.mutedText },
+    ].filter(c => isHex(c.hex));
+
+    if (!colors.length) { alert('No palette data for this snap.'); return; }
+
+    const W = 820, H = 400, PAD = 40;
+    const canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d');
+
+    // Background + subtle gradient
+    const bgGrad = ctx.createLinearGradient(0, 0, W, H);
+    bgGrad.addColorStop(0,   '#07090f');
+    bgGrad.addColorStop(1,   '#0d1224');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, W, H);
+
+    // Accent glow behind first swatch
+    if (colors[0]) {
+        const glow = ctx.createRadialGradient(PAD + 55, 200, 0, PAD + 55, 200, 180);
+        glow.addColorStop(0,   colors[0].hex + '28');
+        glow.addColorStop(1,   'transparent');
+        ctx.fillStyle = glow;
+        ctx.fillRect(0, 0, W, H);
+    }
+
+    // Site name
+    ctx.font = 'bold 26px system-ui,-apple-system,sans-serif';
+    ctx.fillStyle = '#eef1fb';
+    ctx.fillText(snap.siteName || 'Design Palette', PAD, 54);
+
+    // Date + vibe
+    const date = new Date(snap.timestamp).toLocaleDateString('en-US', { month:'long', day:'numeric', year:'numeric' });
+    const sub  = [date, s.vibe].filter(Boolean).join(' · ');
+    ctx.font = '14px system-ui,-apple-system,sans-serif';
+    ctx.fillStyle = '#7a82a3';
+    ctx.fillText(sub, PAD, 78);
+
+    // Divider
+    ctx.strokeStyle = 'rgba(120,150,230,0.14)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(PAD, 96); ctx.lineTo(W - PAD, 96); ctx.stroke();
+
+    // Swatches
+    const sw = Math.min(110, Math.floor((W - PAD * 2 - (colors.length - 1) * 14) / colors.length));
+    const sh = 130, sy = 120;
+    const totalW = colors.length * sw + (colors.length - 1) * 14;
+    const sx0 = (W - totalW) / 2;
+
+    colors.forEach((c, i) => {
+        const x = sx0 + i * (sw + 14);
+        // Rounded swatch
+        ctx.beginPath();
+        const r = 12;
+        ctx.moveTo(x + r, sy); ctx.lineTo(x + sw - r, sy);
+        ctx.quadraticCurveTo(x + sw, sy, x + sw, sy + r);
+        ctx.lineTo(x + sw, sy + sh - r);
+        ctx.quadraticCurveTo(x + sw, sy + sh, x + sw - r, sy + sh);
+        ctx.lineTo(x + r, sy + sh);
+        ctx.quadraticCurveTo(x, sy + sh, x, sy + sh - r);
+        ctx.lineTo(x, sy + r);
+        ctx.quadraticCurveTo(x, sy, x + r, sy);
+        ctx.closePath();
+        ctx.fillStyle = c.hex;
+        ctx.fill();
+
+        const cx = x + sw / 2;
+        ctx.textAlign = 'center';
+        ctx.font = '600 10px system-ui,-apple-system,sans-serif';
+        ctx.fillStyle = 'rgba(122,130,163,0.85)';
+        ctx.fillText(c.label.toUpperCase(), cx, sy + sh + 18);
+        ctx.font = '500 12px "Courier New",monospace';
+        ctx.fillStyle = '#aab2d0';
+        ctx.fillText(c.hex.toUpperCase(), cx, sy + sh + 34);
+        ctx.textAlign = 'left';
+    });
+
+    // Font info
+    const fontStr = [s.headingFont, s.bodyFont].filter(Boolean).join(' · ');
+    if (fontStr) {
+        ctx.font = '13px system-ui,-apple-system,sans-serif';
+        ctx.fillStyle = '#4a5068';
+        ctx.fillText(fontStr, PAD, H - 28);
+    }
+
+    // UIDrop brand
+    ctx.font = 'bold 12px system-ui,-apple-system,sans-serif';
+    ctx.fillStyle = '#4a5068';
+    ctx.textAlign = 'right';
+    ctx.fillText('UIDrop', W - PAD, H - 28);
+    ctx.textAlign = 'left';
+
+    const a = document.createElement('a');
+    a.download = `${(snap.siteName || 'palette').replace(/[^a-z0-9]/gi,'-').toLowerCase()}-palette.png`;
+    a.href = canvas.toDataURL('image/png');
+    a.click();
 }
 
 // ── Boot ──────────────────────────────────────────────────────
