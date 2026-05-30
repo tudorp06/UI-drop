@@ -72,6 +72,19 @@ async function injectPromptIntoEditor(text, imageDataUrl, target) {
         'fieldset div[contenteditable="true"]',
         'div[contenteditable="true"]'
       ]
+    : target === 'lovable'
+    ? [
+        'textarea[placeholder]',
+        'textarea',
+        'div[contenteditable="true"]'
+      ]
+    : target === 'manus'
+    ? [
+        'textarea[placeholder]',
+        'textarea',
+        'div[contenteditable="true"][role="textbox"]',
+        'div[contenteditable="true"]'
+      ]
     : [
         '#prompt-textarea[contenteditable="true"]',
         'div.ProseMirror[contenteditable="true"]',
@@ -97,29 +110,36 @@ async function injectPromptIntoEditor(text, imageDataUrl, target) {
   }
 
   editor.focus();
-  try {
-    const sel = window.getSelection();
-    sel.removeAllRanges();
-    const range = document.createRange();
-    range.selectNodeContents(editor);
-    range.collapse(false);
-    sel.addRange(range);
-  } catch (e) {}
 
-  let inserted = false;
-  try {
-    inserted = document.execCommand('insertText', false, text);
-  } catch (e) {}
-
-  if (!inserted) {
+  // Native textarea — set value directly and fire input event
+  if (editor.tagName === 'TEXTAREA' || editor.tagName === 'INPUT') {
+    const nativeSet = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set
+                   || Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+    if (nativeSet) nativeSet.call(editor, text);
+    editor.dispatchEvent(new Event('input', { bubbles: true }));
+    editor.dispatchEvent(new Event('change', { bubbles: true }));
+  } else {
+    // contenteditable — use execCommand then paste event fallback
     try {
-      const dt = new DataTransfer();
-      dt.setData('text/plain', text);
-      editor.dispatchEvent(new ClipboardEvent('paste', {
-        bubbles: true, cancelable: true, clipboardData: dt
-      }));
-      inserted = true;
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      const range = document.createRange();
+      range.selectNodeContents(editor);
+      range.collapse(false);
+      sel.addRange(range);
     } catch (e) {}
+
+    let inserted = false;
+    try { inserted = document.execCommand('insertText', false, text); } catch (e) {}
+    if (!inserted) {
+      try {
+        const dt = new DataTransfer();
+        dt.setData('text/plain', text);
+        editor.dispatchEvent(new ClipboardEvent('paste', {
+          bubbles: true, cancelable: true, clipboardData: dt
+        }));
+      } catch (e) {}
+    }
   }
 
   if (imageDataUrl) {

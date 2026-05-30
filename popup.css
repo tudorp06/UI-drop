@@ -919,15 +919,41 @@ body::-webkit-scrollbar-corner {
   border-color: rgba(180, 180, 200, 0.18);
 }
 
-.btn-codex:hover {
-  border-color: rgba(124, 91, 255, 0.4);
-  background: rgba(124, 91, 255, 0.08);
-  color: #a89aff;
-  box-shadow: 0 4px 14px rgba(124, 91, 255, 0.18);
+.btn-chatgpt:hover {
+  border-color: rgba(16, 163, 127, 0.4);
+  background: rgba(16, 163, 127, 0.08);
+  color: #34d399;
+  box-shadow: 0 4px 14px rgba(16, 163, 127, 0.18);
 }
-.btn-codex .btn-icon-wrap {
-  background: #fff;
-  border-color: rgba(124, 91, 255, 0.3);
+.btn-chatgpt .btn-icon-wrap {
+  background: #10a37f;
+  border-color: rgba(16, 163, 127, 0.35);
+}
+.btn-icon-gpt {
+  background: #10a37f !important;
+  border-color: rgba(16, 163, 127, 0.35) !important;
+}
+
+.btn-lovable:hover {
+  border-color: rgba(255, 75, 110, 0.4);
+  background: rgba(255, 75, 110, 0.08);
+  color: #ff6b8a;
+  box-shadow: 0 4px 14px rgba(255, 75, 110, 0.18);
+}
+.btn-icon-lovable {
+  background: #ff4b6e !important;
+  border-color: rgba(255, 75, 110, 0.35) !important;
+}
+
+.btn-manus:hover {
+  border-color: rgba(99, 102, 241, 0.4);
+  background: rgba(99, 102, 241, 0.08);
+  color: #a5b4fc;
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.18);
+}
+.btn-icon-manus {
+  background: #6366f1 !important;
+  border-color: rgba(99, 102, 241, 0.35) !important;
 }
 
 .btn-icon-wrap {

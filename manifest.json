@@ -24,13 +24,14 @@
     "activeTab",
     "scripting",
     "storage",
-    "unlimitedStorage",
-    "clipboardWrite"
+    "unlimitedStorage"
   ],
 
   "host_permissions": [
     "https://claude.ai/*",
     "https://chatgpt.com/*",
+    "https://lovable.dev/*",
+    "https://manus.im/*",
     "https://extensionpay.com/*"
   ],
 

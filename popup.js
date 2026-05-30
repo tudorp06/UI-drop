@@ -8,6 +8,8 @@ const schemaSummary  = document.getElementById('schemaSummary');
 const btnClaude      = document.getElementById('btnClaude');
 const btnCursor      = document.getElementById('btnCursor');
 const btnChatGPT     = document.getElementById('btnChatGPT');
+const btnLovable     = document.getElementById('btnLovable');
+const btnManus       = document.getElementById('btnManus');
 const btnCopy        = document.getElementById('btnCopy');
 const dragHint       = document.getElementById('dragHint');
 const btnLibrary     = document.getElementById('btnLibrary');
@@ -902,6 +904,30 @@ btnChatGPT.addEventListener('click', async () => {
 btnCursor.addEventListener('click', async () => {
     if (!finalPrompt) return showNoSnapWarning();
     await copyTextAndImage(btnCursor, 'Copied!');
+});
+
+btnLovable.addEventListener('click', async () => {
+    if (!finalPrompt) return showNoSnapWarning();
+    const screenshot = await getCurrentScreenshot();
+    chrome.runtime.sendMessage({
+        action: 'openWithPrompt',
+        target: 'lovable',
+        url: 'https://lovable.dev/',
+        prompt: finalPrompt,
+        screenshot
+    });
+});
+
+btnManus.addEventListener('click', async () => {
+    if (!finalPrompt) return showNoSnapWarning();
+    const screenshot = await getCurrentScreenshot();
+    chrome.runtime.sendMessage({
+        action: 'openWithPrompt',
+        target: 'manus',
+        url: 'https://manus.im/',
+        prompt: finalPrompt,
+        screenshot
+    });
 });
 
 btnCopy.addEventListener('click', async () => {
