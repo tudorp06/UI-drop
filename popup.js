@@ -4,7 +4,7 @@ const screenshotArea = document.getElementById('screenshotArea');
 const schemaBox      = document.getElementById('schemaBox');
 const schemaBody     = document.getElementById('schemaBody');
 const schemaSite     = document.getElementById('schemaSite');
-const schemaSummary  = document.getElementById('schemaSummary');
+const schemaSummary  = null; // removed in redesign
 const btnClaude      = document.getElementById('btnClaude');
 const btnCursor      = document.getElementById('btnCursor');
 const btnChatGPT     = document.getElementById('btnChatGPT');
@@ -673,131 +673,44 @@ function buildFinalPrompt(schema) {
 function renderSchema(schema, siteName) {
     schemaBody.innerHTML = '';
 
-    // ── VIBE ──
-    if (schema.vibe) {
-        const chip = document.createElement('div');
-        chip.className = 'ds-vibe';
-        chip.textContent = schema.vibe;
-        schemaBody.appendChild(chip);
-    }
+    // ── HEADER ──
+    document.getElementById('schemaSite').textContent = siteName || '';
+    const vibeEl = document.getElementById('schemaVibe');
+    const modeEl = document.getElementById('schemaMode');
+    if (vibeEl) vibeEl.textContent = schema.vibe || '';
+    if (modeEl) modeEl.textContent = schema.isDark ? '🌙 Dark' : '☀️ Light';
 
-    // ── PALETTE ──
+    // ── PALETTE — token rows with color dots ──
     const paletteColors = [
         { label: 'primary',  hex: schema.primaryColor },
         { label: 'accent',   hex: schema.accentColor },
-        { label: 'surface',  hex: schema.surfaceColor },
-        { label: 'elevated', hex: schema.elevatedSurface },
         { label: 'text',     hex: schema.textColor },
-        { label: 'muted',    hex: schema.mutedText },
     ].filter(c => c.hex && isHex(c.hex));
 
     if (paletteColors.length) {
         const sec = makeDsSection('Palette');
-        const row = document.createElement('div');
-        row.className = 'ds-palette';
-        paletteColors.forEach(({ label, hex }) => {
-            const item = document.createElement('div');
-            item.className = 'ds-swatch';
-            item.innerHTML = `
-                <div class="ds-swatch-dot" style="background:${escapeHtml(hex)}" title="${escapeHtml(hex)}"></div>
-                <span class="ds-swatch-name">${label}</span>`;
-            row.appendChild(item);
-        });
-        sec.appendChild(row);
+        paletteColors.forEach(({ label, hex }) => sec.appendChild(makeTokenRow(hex, label, hex)));
         schemaBody.appendChild(sec);
     }
 
     // ── TYPOGRAPHY ──
-    if (schema.headingFont || schema.bodyFont || schema.typeScale) {
-        const sec = makeDsSection('Typography');
-        if (schema.headingFont) {
-            sec.appendChild(makeDsTypeLine('Heading', schema.headingFont));
-        }
-        if (schema.bodyFont) {
-            sec.appendChild(makeDsTypeLine('Body', schema.bodyFont));
-        }
-        if (schema.typeScale) {
-            const scale = document.createElement('div');
-            scale.className = 'ds-type-scale';
-            scale.textContent = schema.typeScale;
-            sec.appendChild(scale);
-        }
-        schemaBody.appendChild(sec);
-    }
+    const typoRows = [
+        schema.headingFont && { label: 'heading', val: schema.headingFont },
+        schema.bodyFont    && { label: 'body',    val: schema.bodyFont },
+    ].filter(Boolean);
 
-    // ── TOKENS ──
     const tokenRows = [
-        schema.radius       && { label: 'Radius',   val: schema.radius },
-        schema.spacingScale && { label: 'Spacing',  val: schema.spacingScale },
-        schema.borderColor  && { label: 'Border',   val: schema.borderColor, isColor: true },
-        schema.iconStroke   && { label: 'Icons',    val: schema.iconStroke },
+        schema.radius      && { label: 'radius',  val: schema.radius },
+        schema.borderColor && { label: 'border',  val: schema.borderColor, hex: schema.borderColor },
     ].filter(Boolean);
 
-    if (tokenRows.length) {
-        const sec = makeDsSection('Tokens');
-        tokenRows.forEach(({ label, val, isColor }) => {
-            const line = document.createElement('div');
-            line.className = 'ds-token-line';
-            const valStr = isColor && isHex(val)
-                ? `<span class="ds-dot" style="background:${escapeHtml(val)}"></span><span class="ds-token-val mono">${escapeHtml(val)}</span>`
-                : `<span class="ds-token-val">${escapeHtml(String(val))}</span>`;
-            line.innerHTML = `<span class="ds-token-key">${label}</span>${valStr}`;
-            sec.appendChild(line);
-        });
+    if (typoRows.length || tokenRows.length) {
+        const sec = makeDsSection('Typography & Tokens');
+        typoRows.forEach(({ label, val }) => sec.appendChild(makeTokenRow(null, label, val, true)));
+        tokenRows.forEach(({ label, val, hex }) => sec.appendChild(makeTokenRow(isHex(hex) ? hex : null, label, val)));
         schemaBody.appendChild(sec);
     }
 
-    // ── COMPONENTS ──
-    const compRows = [
-        schema.buttonStyle && { label: 'Button', val: schema.buttonStyle },
-        schema.cardStyle   && { label: 'Card',   val: schema.cardStyle },
-        schema.inputStyle  && { label: 'Input',  val: schema.inputStyle },
-    ].filter(Boolean);
-
-    if (compRows.length) {
-        const sec = makeDsSection('Components');
-        compRows.forEach(({ label, val }) => {
-            const line = document.createElement('div');
-            line.className = 'ds-comp-line';
-            // Parse the formatted string into a compact visual summary.
-            // The full string (e.g. "#08090D bg, #F0F2F5 text, 10px radius, 500 weight")
-            // is meant for the AI prompt — in the popup we show just the key visual tokens.
-            const parts = String(val).split(',').map(s => s.trim());
-            const bg     = parts.find(p => p.endsWith(' bg'));
-            const radius = parts.find(p => p.includes('radius'));
-            const pad    = parts.find(p => p.includes('padding'));
-            const pieces = [];
-            if (bg) {
-                const hex = bg.replace(' bg', '').trim();
-                const swatch = isHex(hex)
-                    ? `<span class="ds-dot" style="background:${escapeHtml(hex)}"></span>`
-                    : '';
-                pieces.push(`${swatch}<span>${escapeHtml(hex)} bg</span>`);
-            }
-            if (radius) pieces.push(`<span>${escapeHtml(radius)}</span>`);
-            if (pad)    pieces.push(`<span>${escapeHtml(pad)}</span>`);
-            const summary = pieces.length ? pieces.join('<span class="ds-comp-sep">·</span>') : escapeHtml(String(val));
-            line.innerHTML = `<span class="ds-comp-key">${label}</span><span class="ds-comp-val">${summary}</span>`;
-            sec.appendChild(line);
-        });
-        schemaBody.appendChild(sec);
-    }
-
-    // ── MORE ──
-    const extras = [
-        Array.isArray(schema.gradients)  && schema.gradients.length > 0,
-        Array.isArray(schema.shadowScale) && schema.shadowScale.length > 0,
-        !!schema.linkStyle,
-    ].filter(Boolean).length;
-
-    if (extras > 0) {
-        const more = document.createElement('div');
-        more.className = 'schema-more';
-        more.textContent = `+${extras} more in the full brief →`;
-        schemaBody.appendChild(more);
-    }
-
-    schemaSummary.style.display = 'none';
     schemaBox.classList.remove('hidden');
 }
 
@@ -811,11 +724,22 @@ function makeDsSection(label) {
     return sec;
 }
 
-function makeDsTypeLine(role, val) {
-    const line = document.createElement('div');
-    line.className = 'ds-type-line';
-    line.innerHTML = `<span class="ds-type-role">${role}</span><span class="ds-type-val">${escapeHtml(String(val))}</span>`;
-    return line;
+function makeTokenRow(hex, key, val, isText = false) {
+    const row = document.createElement('div');
+    row.className = 'ds-token-row';
+    const dot = document.createElement('div');
+    dot.className = hex ? 'ds-token-dot' : 'ds-token-dot empty';
+    if (hex) dot.style.background = hex;
+    const keyEl = document.createElement('span');
+    keyEl.className = 'ds-token-key';
+    keyEl.textContent = key;
+    const valEl = document.createElement('span');
+    valEl.className = isText ? 'ds-token-val text' : 'ds-token-val';
+    valEl.textContent = String(val);
+    row.appendChild(dot);
+    row.appendChild(keyEl);
+    row.appendChild(valEl);
+    return row;
 }
 
 function prettyKey(k) {

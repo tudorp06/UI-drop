@@ -62,20 +62,18 @@
     </button>
 
     <div class="schema hidden" id="schemaBox">
-      <div class="schema-header">
-        <span class="schema-label">Design schema</span>
+      <div class="schema-head">
         <span class="schema-site" id="schemaSite"></span>
+        <div class="schema-meta">
+          <span class="schema-vibe" id="schemaVibe"></span>
+          <span class="schema-mode" id="schemaMode"></span>
+        </div>
       </div>
-
       <div class="schema-body" id="schemaBody"></div>
-
-      <hr class="schema-divider"/>
-
-      <p class="schema-summary" id="schemaSummary"></p>
     </div>
 
     <div class="send-label">Send to</div>
-    <div class="send-row">
+    <div class="send-grid">
 
       <button class="send-btn btn-claude" id="btnClaude">
         <div class="btn-icon-wrap">
@@ -107,7 +105,7 @@
         Manus
       </button>
 
-    </div>
+    </div><!-- /send-grid -->
 
     <div class="copy-row">
       <button class="copy-btn btn-cursor" id="btnCursor">
