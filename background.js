@@ -146,7 +146,7 @@ async function injectPromptIntoEditor(text, imageDataUrl, target) {
     try {
       const res = await fetch(imageDataUrl);
       const blob = await res.blob();
-      const file = new File([blob], 'uidrop-screenshot', { type: blob.type || 'image/png' });
+      const file = new File([blob], 'uidrop-screenshot.png', { type: 'image/png' });
 
       // Single paste only — no DOM verification, no fallback.
       // The hasImage check used editor.closest('form') but Claude renders
