@@ -684,7 +684,9 @@ function renderSchema(schema, siteName) {
     const paletteColors = [
         { label: 'primary',  hex: schema.primaryColor },
         { label: 'accent',   hex: schema.accentColor },
+        { label: 'surface',  hex: schema.surfaceColor },
         { label: 'text',     hex: schema.textColor },
+        { label: 'muted',    hex: schema.mutedText },
     ].filter(c => c.hex && isHex(c.hex));
 
     if (paletteColors.length) {
@@ -697,27 +699,35 @@ function renderSchema(schema, siteName) {
     const typoRows = [
         schema.headingFont && { label: 'heading', val: schema.headingFont },
         schema.bodyFont    && { label: 'body',    val: schema.bodyFont },
+        schema.typeScale   && { label: 'scale',   val: schema.typeScale },
     ].filter(Boolean);
 
-    const tokenRows = [
-        schema.radius      && { label: 'radius',  val: schema.radius },
-        schema.borderColor && { label: 'border',  val: schema.borderColor, hex: schema.borderColor },
-    ].filter(Boolean);
-
-    if (typoRows.length || tokenRows.length) {
-        const sec = makeDsSection('Typography & Tokens');
+    if (typoRows.length) {
+        const sec = makeDsSection('Typography');
         typoRows.forEach(({ label, val }) => sec.appendChild(makeTokenRow(null, label, val, true)));
-        tokenRows.forEach(({ label, val, hex }) => sec.appendChild(makeTokenRow(isHex(hex) ? hex : null, label, val)));
         schemaBody.appendChild(sec);
     }
 
-    // ── MORE — count everything not shown in the compact view ──
+    // ── TOKENS ──
+    const tokenRows = [
+        schema.radius       && { label: 'radius',  val: schema.radius },
+        schema.shadowScale  && { label: 'shadow',  val: schema.shadowScale },
+        schema.spacingScale && { label: 'spacing', val: schema.spacingScale },
+        schema.borderColor  && { label: 'border',  val: schema.borderColor, hex: schema.borderColor },
+    ].filter(Boolean);
+
+    if (tokenRows.length) {
+        const sec = makeDsSection('Tokens');
+        tokenRows.forEach(({ label, val, hex }) => sec.appendChild(makeTokenRow(hex && isHex(hex) ? hex : null, label, val)));
+        schemaBody.appendChild(sec);
+    }
+
+    // ── MORE — count what's still hidden (components, gradients, etc.) ──
     const extras = [
-        schema.surfaceColor, schema.elevatedSurface, schema.mutedText,
-        schema.shadowScale, schema.spacingScale, schema.iconStroke,
         schema.buttonStyle, schema.cardStyle, schema.inputStyle,
-        schema.linkStyle, schema.typeScale,
+        schema.linkStyle, schema.iconStroke,
         Array.isArray(schema.gradients) && schema.gradients.length ? schema.gradients : null,
+        schema.elevatedSurface,
     ].filter(Boolean).length;
 
     if (extras > 0) {
