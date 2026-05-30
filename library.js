@@ -377,14 +377,14 @@ function openDetail(id) {
                Claude
              </button>
              <button class="detail-send-btn dsb-lovable" id="detailBtnLovable">
-               <div class="dsb-icon" style="background:#fff;border-color:rgba(255,75,110,0.25);overflow:hidden;padding:0;">
-                 <img src="icons/lovable-color.png" alt="Lovable" style="width:32px;height:32px;object-fit:contain;display:block;"/>
+               <div class="dsb-icon" style="background:#fff;border-color:rgba(0,0,0,0.1);overflow:hidden;padding:2px;">
+                 <img src="icons/lovable-color.png" alt="Lovable" style="width:28px;height:28px;object-fit:contain;display:block;border-radius:4px;"/>
                </div>
                Lovable
              </button>
              <button class="detail-send-btn dsb-manus" id="detailBtnManus">
                <div class="dsb-icon" style="background:#fff;border-color:rgba(0,0,0,0.1);overflow:hidden;padding:4px;">
-                 <img src="icons/manus.png" alt="Manus" style="width:24px;height:24px;object-fit:contain;display:block;"/>
+                 <img src="icons/manus.png" alt="Manus" style="width:24px;height:24px;object-fit:contain;display:block;border-radius:3px;"/>
                </div>
                Manus
              </button>

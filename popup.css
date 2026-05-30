@@ -941,8 +941,8 @@ body::-webkit-scrollbar-corner {
   box-shadow: 0 4px 14px rgba(255, 75, 110, 0.18);
 }
 .btn-icon-lovable {
-  background: #ff4b6e !important;
-  border-color: rgba(255, 75, 110, 0.35) !important;
+  background: #ffffff !important;
+  border-color: rgba(0,0,0,0.1) !important;
 }
 
 .btn-manus:hover {
@@ -952,8 +952,8 @@ body::-webkit-scrollbar-corner {
   box-shadow: 0 4px 14px rgba(99, 102, 241, 0.18);
 }
 .btn-icon-manus {
-  background: #6366f1 !important;
-  border-color: rgba(99, 102, 241, 0.35) !important;
+  background: #ffffff !important;
+  border-color: rgba(0,0,0,0.1) !important;
 }
 
 .btn-icon-wrap {
