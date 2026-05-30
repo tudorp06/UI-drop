@@ -536,6 +536,16 @@ body::-webkit-scrollbar-corner {
   color: rgba(255,255,255,0.65);
 }
 
+.schema-more {
+  padding: 8px 14px 10px;
+  border-top: 1px solid rgba(120,150,230,0.12);
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(138,109,255,0.7);
+  text-align: center;
+  letter-spacing: -0.1px;
+}
+
 .schema-divider {
   border: none;
   border-top: 1px solid var(--line);

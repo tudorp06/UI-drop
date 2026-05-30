@@ -711,6 +711,22 @@ function renderSchema(schema, siteName) {
         schemaBody.appendChild(sec);
     }
 
+    // ── MORE — count everything not shown in the compact view ──
+    const extras = [
+        schema.surfaceColor, schema.elevatedSurface, schema.mutedText,
+        schema.shadowScale, schema.spacingScale, schema.iconStroke,
+        schema.buttonStyle, schema.cardStyle, schema.inputStyle,
+        schema.linkStyle, schema.typeScale,
+        Array.isArray(schema.gradients) && schema.gradients.length ? schema.gradients : null,
+    ].filter(Boolean).length;
+
+    if (extras > 0) {
+        const more = document.createElement('div');
+        more.className = 'schema-more';
+        more.textContent = `+${extras} more tokens in full brief`;
+        schemaBody.appendChild(more);
+    }
+
     schemaBox.classList.remove('hidden');
 }
 
