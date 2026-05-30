@@ -130,9 +130,17 @@ async function performSnap() {
 
     } catch (err) {
         console.error('UIDrop error:', err);
-        setStatus('error', false);
         snapBtn.disabled = false;
-        snapBtn.textContent = 'Try again';
+
+        const msg = err?.message || '';
+        if (msg.includes('cannot be scripted') || msg.includes('extensions gallery') || msg.includes('chrome://') || msg.includes('Cannot access')) {
+            setStatus('error', false);
+            snapBtn.innerHTML = snapButtonInnerHTML("Can't snap this page");
+            snapBtn.title = "Chrome system pages and the Extensions store can't be snapped. Try on any regular website.";
+        } else {
+            setStatus('error', false);
+            snapBtn.textContent = 'Try again';
+        }
     }
 }
 
