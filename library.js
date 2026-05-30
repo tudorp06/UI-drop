@@ -377,14 +377,14 @@ function openDetail(id) {
                Claude
              </button>
              <button class="detail-send-btn dsb-lovable" id="detailBtnLovable">
-               <div class="dsb-icon" style="background:#ff4b6e;border-color:rgba(255,75,110,0.35);">
-                 <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+               <div class="dsb-icon" style="background:#fff;border-color:rgba(255,75,110,0.25);overflow:hidden;padding:0;">
+                 <img src="icons/lovable-color.png" alt="Lovable" style="width:32px;height:32px;object-fit:contain;display:block;"/>
                </div>
                Lovable
              </button>
              <button class="detail-send-btn dsb-manus" id="detailBtnManus">
-               <div class="dsb-icon" style="overflow:hidden;padding:0;">
-                 <img src="icons/eye-logo.jpg" alt="Manus" style="width:32px;height:32px;object-fit:cover;border-radius:7px;display:block;"/>
+               <div class="dsb-icon" style="background:#fff;border-color:rgba(0,0,0,0.1);overflow:hidden;padding:4px;">
+                 <img src="icons/manus.png" alt="Manus" style="width:24px;height:24px;object-fit:contain;display:block;"/>
                </div>
                Manus
              </button>

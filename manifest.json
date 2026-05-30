@@ -41,7 +41,7 @@
 
   "web_accessible_resources": [
     {
-      "resources": ["library.html", "library.js", "icons/*"],
+      "resources": ["library.html", "library.js", "icons/*", "icons/lovable-color.png", "icons/manus.png"],
       "matches":   ["<all_urls>"]
     }
   ],
