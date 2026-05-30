@@ -1145,14 +1145,14 @@ body::-webkit-scrollbar-corner {
 }
 
 .library-row {
-  margin: 10px 18px 0;
+  margin: 14px 18px 0;
 }
 
 .library-btn {
   width: 100%;
-  padding: 11px 16px;
-  background: linear-gradient(135deg, rgba(255,124,40,0.06) 0%, rgba(138,109,255,0.08) 50%, rgba(91,141,239,0.06) 100%);
-  border: 1px solid rgba(138,109,255,0.28);
+  padding: 13px 16px;
+  background: linear-gradient(135deg, rgba(192,132,252,0.08) 0%, rgba(124,58,237,0.12) 50%, rgba(56,189,248,0.07) 100%);
+  border: 1px solid rgba(138,109,255,0.35);
   border-radius: 10px;
   color: var(--text-dim);
   font-family: 'Switzer', system-ui, sans-serif;
@@ -1167,8 +1167,8 @@ body::-webkit-scrollbar-corner {
 }
 
 .library-btn:hover {
-  border-color: rgba(138,109,255,0.5);
-  background: linear-gradient(135deg, rgba(255,124,40,0.10) 0%, rgba(138,109,255,0.14) 50%, rgba(91,141,239,0.10) 100%);
+  border-color: rgba(138,109,255,0.6);
+  background: linear-gradient(135deg, rgba(192,132,252,0.14) 0%, rgba(124,58,237,0.18) 50%, rgba(56,189,248,0.10) 100%);
   color: #fff;
 }
 
