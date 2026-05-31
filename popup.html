@@ -72,7 +72,13 @@
       <div class="schema-body" id="schemaBody"></div>
     </div>
 
-    <div class="send-label">Send to</div>
+    <div class="send-header">
+      <span class="send-label">Send to</span>
+      <div class="format-toggle" id="formatToggle" role="tablist" aria-label="Output format">
+        <button class="fmt-opt fmt-active" data-mode="brief" role="tab" aria-selected="true">Brief</button>
+        <button class="fmt-opt" data-mode="skill" role="tab" aria-selected="false">Skill .md</button>
+      </div>
+    </div>
     <div class="send-grid">
 
       <button class="send-btn btn-claude" id="btnClaude">
@@ -120,6 +126,17 @@
           <path d="M3 11V3h8"/>
         </svg>
         Copy schema to clipboard
+      </button>
+    </div>
+
+    <div class="copy-row">
+      <button class="copy-btn" id="btnDownloadMd" title="Download as design-system.md — drop into Claude Project or Cursor rules">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M8 3v8"/>
+          <polyline points="4 7 8 11 12 7"/>
+          <path d="M3 13h10"/>
+        </svg>
+        Download <code style="font-family:'JetBrains Mono',monospace;font-size:11px;opacity:.7;margin-left:2px;">design-system.md</code>
       </button>
     </div>
 

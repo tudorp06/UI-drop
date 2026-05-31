@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "UIDrop",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Extract any website's colors, fonts, spacing & components in one click. Send the design brief to Claude, Cursor or ChatGPT instantly",
 
   "icons": {

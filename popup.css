@@ -716,12 +716,47 @@ body::-webkit-scrollbar-corner {
 }
 
 .send-label {
-  margin: 16px 18px 8px;
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.8px;
   text-transform: uppercase;
   color: var(--text-dim);
+}
+.send-header {
+  margin: 16px 18px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* Brief / Skill .md toggle */
+.format-toggle {
+  display: inline-flex;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 2px;
+  gap: 2px;
+}
+.fmt-opt {
+  font-family: 'Switzer', system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1px;
+  color: rgba(255, 255, 255, 0.45);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+.fmt-opt:hover { color: rgba(255, 255, 255, 0.75); }
+.fmt-opt.fmt-active {
+  color: #fff;
+  background: linear-gradient(135deg, rgba(192,132,252,0.18), rgba(124,58,237,0.22), rgba(56,189,248,0.14));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .send-row, .send-grid {
