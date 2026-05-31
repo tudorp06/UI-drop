@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "UIDrop: Snap a site's Design System to Claude, GPT, Lovable, Manus, Cursor",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Extract colors, fonts, spacing & components — buttons, cards, chips — from any site. Send to Claude, GPT, Cursor, Lovable or Manus.",
 
   "icons": {

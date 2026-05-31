@@ -211,6 +211,14 @@ function scrapeDesignTokens() {
   // E.g. "button goes full-width at 600px, font-size drops to 14px".
   const responsiveComponents = scrapeResponsiveComponents();
 
+  // ── Phase 1: depth signals that don't copy the competitor ──
+  // Framework detection (Tailwind / Material / shadcn / etc.) — single string
+  const framework         = detectFramework();
+  // Per-component radius vocabulary — what shape each component uses
+  const radiusVocabulary  = scrapeRadiusVocabulary();
+  // Design rhythm insights — pattern descriptors, not raw values
+  const rhythm            = scrapeRhythm(spacingScale, button?.radius, shadowScale, bodyLineHeight, radiusVocabulary);
+
   return {
     fonts:             uniqueFonts,
     colors:            colorsByUse,
@@ -236,6 +244,9 @@ function scrapeDesignTokens() {
     zIndexScale,
     activeStates,
     responsiveComponents,
+    framework,
+    radiusVocabulary,
+    rhythm,
     siteName:          window.location.hostname.replace('www.', ''),
     pageTitle:         document.title,
     components:        { button, card, input, link }
@@ -1314,6 +1325,144 @@ function scrapeBreakpoints() {
   }
 
   return [...bps].sort((a, b) => a - b).slice(0, 8);
+}
+
+// ── Framework detection ─────────────────────────────────────────
+// Pattern-matches CSS variable naming + class name prefixes against
+// known frameworks. Returns the framework name or null.
+// Deterministic, ~5ms, no DOM mutation.
+function detectFramework() {
+  // 1. CSS variable prefixes (from :root) — strongest signal
+  const rootStyle = getComputedStyle(document.documentElement);
+  const cssVarFingerprint = (() => {
+    const found = new Set();
+    for (const sheet of document.styleSheets) {
+      try {
+        for (const rule of sheet.cssRules || []) {
+          if (rule.selectorText !== ':root' && rule.selectorText !== 'html') continue;
+          for (const prop of rule.style || []) {
+            if (prop.startsWith('--')) found.add(prop);
+          }
+        }
+      } catch (_) { /* cross-origin */ }
+    }
+    return found;
+  })();
+
+  const hasVar = (prefix) => [...cssVarFingerprint].some(v => v.startsWith(prefix));
+
+  if (hasVar('--tw-') || hasVar('--tailwind-')) return 'Tailwind CSS';
+  if (hasVar('--radix-'))                         return 'Radix UI';
+  if (hasVar('--mantine-'))                       return 'Mantine';
+  if (hasVar('--chakra-'))                        return 'Chakra UI';
+  if (hasVar('--mui-') || hasVar('--material-'))  return 'Material UI';
+  if (hasVar('--bs-'))                            return 'Bootstrap';
+  if (hasVar('--ant-'))                           return 'Ant Design';
+  if (hasVar('--nextui-'))                        return 'NextUI';
+  if (hasVar('--shadcn-'))                        return 'shadcn/ui';
+
+  // 2. Class-name prefix scan on a sample of elements
+  let countMui = 0, countAnt = 0, countChakra = 0, countMantine = 0, countShadcn = 0;
+  const sample = document.querySelectorAll('button, a, div, span');
+  let scanned = 0;
+  for (const el of sample) {
+    if (scanned++ > 400) break;
+    const cls = el.className;
+    if (typeof cls !== 'string') continue;
+    if (cls.includes('Mui') || cls.startsWith('Mui-')) countMui++;
+    if (cls.includes('ant-')) countAnt++;
+    if (cls.includes('chakra-')) countChakra++;
+    if (cls.includes('mantine-')) countMantine++;
+    // shadcn typically pairs Tailwind + HSL-named tokens — heuristic check
+    if (el.hasAttribute('data-state') || el.hasAttribute('data-orientation')) countShadcn++;
+  }
+  if (countMui     >= 5) return 'Material UI';
+  if (countAnt     >= 5) return 'Ant Design';
+  if (countChakra  >= 5) return 'Chakra UI';
+  if (countMantine >= 5) return 'Mantine';
+
+  // 3. shadcn check — uses CSS vars named --background, --foreground etc as HSL
+  if (rootStyle.getPropertyValue('--background').trim() &&
+      rootStyle.getPropertyValue('--foreground').trim() &&
+      rootStyle.getPropertyValue('--primary').trim()) {
+    return 'shadcn/ui';
+  }
+
+  // 4. Radix data-state pattern (used by shadcn/headlessui/radix directly)
+  if (countShadcn >= 3) return 'Radix UI';
+
+  return null;
+}
+
+// ── Radius vocabulary ──────────────────────────────────────────
+// Reads the radius value off each major component class and returns
+// a semantic mapping. Different from `radius` (the brief summary) —
+// this gives the AI which radius goes with which component type.
+function scrapeRadiusVocabulary() {
+  const vocab = {};
+
+  const sampleRadius = (selector, key) => {
+    for (const el of document.querySelectorAll(selector)) {
+      if (!isVisible(el)) continue;
+      const r = parseFloat(getComputedStyle(el).borderTopLeftRadius);
+      if (r > 0) {
+        vocab[key] = r >= 100 ? 'pill' : `${Math.round(r)}px`;
+        return;
+      }
+    }
+  };
+
+  sampleRadius('button, [role="button"]',                'button');
+  sampleRadius('[class*="card" i], article',              'card');
+  sampleRadius('input[type="text"], input[type="email"], input:not([type]), textarea', 'input');
+  sampleRadius('[class*="chip" i], [class*="tag" i], [class*="badge" i], [class*="pill" i]', 'chip');
+
+  return Object.keys(vocab).length ? vocab : null;
+}
+
+// ── Design rhythm insights ─────────────────────────────────────
+// Detects high-level patterns the AI cares about — grid base, pill
+// usage, soft vs sharp vocabulary. Pattern not raw numbers.
+function scrapeRhythm(spacingScale, buttonRadius, shadowScale, bodyLineHeight, radiusVocabulary) {
+  const signals = [];
+
+  // 1. Grid base — GCD of spacing values (common values: 4, 6, 8)
+  if (Array.isArray(spacingScale) && spacingScale.length >= 3) {
+    const gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
+    const base = spacingScale.reduce(gcd);
+    if (base >= 2 && base <= 16) signals.push(`${base}px grid`);
+  }
+
+  // 2. Pill detection
+  if (radiusVocabulary?.button === 'pill') signals.push('pill buttons');
+
+  // 3. Radius vocabulary descriptor
+  const radii = Object.values(radiusVocabulary || {})
+    .map(v => v === 'pill' ? 999 : parseFloat(v))
+    .filter(n => n > 0);
+  if (radii.length) {
+    const avg = radii.reduce((s, n) => s + Math.min(n, 50), 0) / radii.length;
+    if (avg < 4)       signals.push('sharp corners');
+    else if (avg < 10) signals.push('subtly rounded');
+    else if (avg < 24) signals.push('soft corners');
+    else               signals.push('very rounded');
+  }
+
+  // 4. Line-height descriptor
+  if (bodyLineHeight) {
+    const lh = parseFloat(bodyLineHeight);
+    if (lh && lh >= 1.6)      signals.push(`generous line-height (${lh})`);
+    else if (lh && lh <= 1.3) signals.push(`tight line-height (${lh})`);
+  }
+
+  // 5. Elevation language
+  if (Array.isArray(shadowScale) && shadowScale.length) {
+    signals.push(shadowScale.length >= 3 ? 'layered elevation' : 'soft elevation');
+  } else {
+    signals.push('flat (no shadows)');
+  }
+
+  return signals.length ? signals : null;
 }
 
 // ── Helpers ──

@@ -205,7 +205,11 @@ function buildDesignSystem(tokens) {
         pageStructure:         tokens.pageStructure        || null,
         zIndexScale:           tokens.zIndexScale          || null,
         activeStates:          tokens.activeStates         || null,
-        responsiveComponents:  tokens.responsiveComponents || null
+        responsiveComponents:  tokens.responsiveComponents || null,
+        // ── Phase 1: depth signals (used by .md/Brief, popup UI untouched) ──
+        framework:             tokens.framework            || null,
+        radiusVocabulary:      tokens.radiusVocabulary     || null,
+        rhythm:                tokens.rhythm               || null
     };
 }
 
@@ -496,7 +500,12 @@ function buildSkillMarkdown(schema, siteName) {
     lines.push('## 1. Design Language Overview');
     lines.push('');
     lines.push(`**Vibe:** ${vibe} · ${mode} theme`);
+    if (schema.framework) lines.push(`**Built with:** ${schema.framework}`);
     lines.push('');
+    if (Array.isArray(schema.rhythm) && schema.rhythm.length) {
+        lines.push(`**Design rhythm:** ${schema.rhythm.join(' · ')}`);
+        lines.push('');
+    }
     if (Array.isArray(schema.recommendation) && schema.recommendation.length) {
         lines.push(`**Good for:** ${schema.recommendation.map(r => r.type || r).slice(0, 4).join(' · ')}`);
         lines.push('');
@@ -553,6 +562,11 @@ function buildSkillMarkdown(schema, siteName) {
     lines.push('');
     if (schema.spacingScale) lines.push(`- **Spacing scale:** ${schema.spacingScale}`);
     if (schema.radius)       lines.push(`- **Border radius:** ${schema.radius}`);
+    // NEW: radius vocabulary — which component uses which radius
+    if (schema.radiusVocabulary && Object.keys(schema.radiusVocabulary).length) {
+        const vocab = Object.entries(schema.radiusVocabulary).map(([k, v]) => `${k} → ${v}`).join(', ');
+        lines.push(`- **Radius vocabulary:** ${vocab}`);
+    }
     if (schema.cssVars?.radii && Object.keys(schema.cssVars.radii).length) {
         lines.push(`- **Radius tokens:** ${Object.entries(schema.cssVars.radii).slice(0, 6).map(([k, v]) => `\`${k}: ${v}\``).join(', ')}`);
     }
@@ -646,10 +660,13 @@ function buildFinalPrompt(schema) {
     const parts = [
         `This is a design system extracted from a webpage I find inspiring. I want to build my own site/app UI inspired by this design pattern. Do not copy or replicate brand assets, logos, or identity — use these tokens as a foundation to create something original for me. Match the design language, not the brand:`,
         ``,
-        `Vibe: ${schema.vibe}`,
-        ``,
-        `Palette: ${palette}`
+        `Vibe: ${schema.vibe}`
     ];
+    if (schema.framework) parts.push(`Built with: ${schema.framework}`);
+    if (Array.isArray(schema.rhythm) && schema.rhythm.length) {
+        parts.push(`Rhythm: ${schema.rhythm.join(' · ')}`);
+    }
+    parts.push(``, `Palette: ${palette}`);
     if (monochromeNote) parts.push(``, monochromeNote);
 
     // ── Typography ─────────────────────────────────────────────
@@ -677,6 +694,10 @@ function buildFinalPrompt(schema) {
     // ── Design tokens ──────────────────────────────────────────
     parts.push(``, `Tokens:`);
     parts.push(`• Radius — ${schema.radius}`);
+    if (schema.radiusVocabulary && Object.keys(schema.radiusVocabulary).length) {
+        const vocab = Object.entries(schema.radiusVocabulary).map(([k, v]) => `${k}:${v}`).join(', ');
+        parts.push(`• Radius vocabulary — ${vocab}`);
+    }
 
     // Use CSS-var radius scale if richer than the component-derived summary
     if (schema.cssVars?.radii && Object.keys(schema.cssVars.radii).length) {
