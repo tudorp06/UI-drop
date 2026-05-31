@@ -217,6 +217,12 @@ body.compare-mode .snap-check { display:flex; }
 .snap-star:hover { color:#f59e0b; transform:scale(1.25); }
 .snap-star.on { color:#f59e0b; }
 .snap-date { font-family:var(--font-b); font-size:10.5px; color:var(--faint); margin-bottom:10px; }
+.snap-meta {
+  font-family:var(--font-b); font-size:10.5px; font-weight:500;
+  color:var(--faint); margin-bottom:10px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  letter-spacing:0;
+}
 
 /* ── MOODBOARD GRID ── */
 .moodboard-grid {
@@ -266,6 +272,11 @@ body.compare-mode .snap-check { display:flex; }
   padding:3px 10px; border-radius:5px;
 }
 .snap-rec.muted { opacity:.3; }
+.snap-rec-more {
+  font-family:var(--font-b); font-size:11px; font-weight:500;
+  color:var(--muted); padding:3px 8px;
+  display:inline-flex; align-items:center;
+}
 
 /* ── PAYMENT GATE ── */
 .pay-gate {

@@ -255,18 +255,15 @@ function snapCardHTML(snap) {
             </svg>
           </button>
         </div>
-        <div class="snap-date">${date}</div>
-        ${tagsHTML}
+        <div class="snap-meta">${[date, ...(snap.tags||[]).slice(0,2)].join(' · ')}</div>
         <div class="snap-palette">
           ${palette.map(c => `<div class="snap-swatch" style="background:${c}" title="${c}"></div>`).join('')}
         </div>
-        <div class="snap-rec-section">
-          <span class="snap-rec-label">Good for</span>
-          <div class="snap-recs">
-            ${recs.slice(0,3).map(r =>
+        <div class="snap-recs">
+            ${recs.slice(0,2).map(r =>
                 `<span class="snap-rec">${escHtml(r.type)}</span>`
-            ).join('') || '<span class="snap-rec muted">—</span>'}
-          </div>
+            ).join('')}
+            ${recs.length > 2 ? `<span class="snap-rec-more">+${recs.length - 2}</span>` : ''}
         </div>
       </div>
     </div>`;
@@ -697,15 +694,13 @@ function panelHTML(snap, other) {
           ${tokenRow('inputStyle',  'input',  s.inputStyle)}
         </div>
 
-        <!-- Good for -->
+        ${recs.length ? `
+        <!-- Use-case chips (no label — chips speak for themselves) -->
         <div>
-          <div class="cv-section-label">Good for</div>
           <div class="cv-recs">
-            ${recs.length
-                ? recs.map(r => `<span class="cv-rec">${escHtml(r.type)}</span>`).join('')
-                : '<span style="font-size:12px;color:var(--faint)">—</span>'}
+            ${recs.map(r => `<span class="cv-rec">${escHtml(r.type)}</span>`).join('')}
           </div>
-        </div>
+        </div>` : ''}
 
       </div>
     </div>`;
