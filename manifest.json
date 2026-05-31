@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "UIDrop",
-  "version": "1.0.4",
-  "description": "Extract any website's colors, fonts, spacing & components in one click. Send the design brief to Claude, Cursor or ChatGPT instantly",
+  "name": "UIDrop: Snap a site's Design System to Claude, GPT, Lovable, Manus, Cursor",
+  "version": "1.0.5",
+  "description": "Extract colors, fonts, spacing & components — buttons, cards, chips — from any site. Send to Claude, GPT, Cursor, Lovable or Manus.",
 
   "icons": {
     "16":  "icons/icon16.png",
