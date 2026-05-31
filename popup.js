@@ -1102,22 +1102,6 @@ document.querySelectorAll('#formatToggle .fmt-opt').forEach(btn => {
     });
 });
 
-// ── Download .md ──────────────────────────────────────────────
-const btnDownloadMd = document.getElementById('btnDownloadMd');
-btnDownloadMd?.addEventListener('click', () => {
-    if (!skillMarkdown) return showNoSnapWarning();
-    const safeSlug = (snappedSiteName || 'site').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'site';
-    const blob = new Blob([skillMarkdown], { type: 'text/markdown;charset=utf-8' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href = url;
-    a.download = `${safeSlug}-design-system.md`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    flashCopied(btnDownloadMd, '✓ Downloaded');
-});
 
 async function copyTextAndImage(btn, successLabel) {
     try {
