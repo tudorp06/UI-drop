@@ -58,13 +58,13 @@ function waitForTabComplete(tabId) {
 }
 
 async function injectPromptIntoEditor(text, imageDataUrl, target) {
-  // ── 1. Find the editor ──
+
+  // ── 1. Find the editor ──────────────────────────────────────
   const selectors = target === 'claude'
     ? ['div.ProseMirror[contenteditable="true"]',
        'div[contenteditable="true"][role="textbox"]']
     : (target === 'lovable' || target === 'manus')
-    ? ['textarea[placeholder]', 'textarea',
-       'div[contenteditable="true"]']
+    ? ['textarea[placeholder]', 'textarea', 'div[contenteditable="true"]']
     : ['#prompt-textarea[contenteditable="true"]',
        'div.ProseMirror[contenteditable="true"]',
        'div[contenteditable="true"][role="textbox"]',
@@ -80,43 +80,60 @@ async function injectPromptIntoEditor(text, imageDataUrl, target) {
   }
 
   if (!editor) {
-    // Editor missing — fall back to clipboard so user can paste themselves
-    try { await navigator.clipboard.writeText(text); } catch (e) {}
-    console.warn('[UIDrop] Editor not found — text copied to clipboard, press Ctrl+V');
+    console.warn('[UIDrop] Editor not found after 6s');
     return { success: false, reason: 'no-editor' };
   }
 
-  // ── 2. Insert text — exactly ONE method, no fallback chain ──
+  // ── 2. Insert TEXT ─────────────────────────────────────────
+  // RULE: text must NEVER touch the clipboard or a paste event.
+  // Paste events can fire multiple times on some editors when both
+  // the event AND the clipboard are read. execCommand('insertText')
+  // writes directly into the editor's document — no clipboard, no
+  // secondary paste path possible.
   editor.focus();
 
   if (editor.tagName === 'TEXTAREA' || editor.tagName === 'INPUT') {
-    // Native input/textarea: set value via prototype setter so React picks it up
-    const proto = editor.tagName === 'TEXTAREA'
+    // Native textarea/input: React-safe prototype setter
+    const proto  = editor.tagName === 'TEXTAREA'
       ? window.HTMLTextAreaElement.prototype
       : window.HTMLInputElement.prototype;
     const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
     if (setter) setter.call(editor, text);
-    editor.dispatchEvent(new Event('input', { bubbles: true }));
+    editor.dispatchEvent(new Event('input',  { bubbles: true }));
+    editor.dispatchEvent(new Event('change', { bubbles: true }));
   } else {
-    // Contenteditable (ProseMirror etc.): single paste event ONLY.
-    // Previously had execCommand('insertText') + paste fallback — Claude's
-    // ProseMirror sometimes responded to both, inserting the text 2-3 times.
-    const dt = new DataTransfer();
-    dt.setData('text/plain', text);
-    editor.dispatchEvent(new ClipboardEvent('paste', {
-      bubbles: true, cancelable: true, clipboardData: dt
-    }));
+    // contenteditable (ProseMirror / Lexical etc.)
+    // Place cursor at the end, then insert via execCommand.
+    // execCommand is "deprecated" but still works in all browsers for
+    // injected scripts. It does NOT touch the clipboard.
+    try {
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      const range = document.createRange();
+      range.selectNodeContents(editor);
+      range.collapse(false);
+      sel.addRange(range);
+      document.execCommand('insertText', false, text);
+    } catch (e) {
+      console.warn('[UIDrop] execCommand failed', e);
+    }
   }
 
-  // ── 3. Attach screenshot (if any) — single paste with explicit PNG type ──
+  // Brief pause so the editor can settle before we attach the image
+  await new Promise(r => setTimeout(r, 400));
+
+  // ── 3. Attach SCREENSHOT ───────────────────────────────────
+  // Completely separate from the text step — a paste event whose
+  // clipboardData contains ONLY the image file, no text at all.
+  // Because there is no text in the DataTransfer, no editor can
+  // accidentally insert a second copy of the brief.
   if (imageDataUrl) {
     try {
       const res  = await fetch(imageDataUrl);
       const blob = await res.blob();
-      // Explicit name + MIME so Claude recognises it as an image, not a generic File
       const file = new File([blob], 'uidrop-screenshot.png', { type: 'image/png' });
       const dt   = new DataTransfer();
-      dt.items.add(file);
+      dt.items.add(file);   // image only — intentionally no text entry
       editor.focus();
       editor.dispatchEvent(new ClipboardEvent('paste', {
         bubbles: true, cancelable: true, clipboardData: dt

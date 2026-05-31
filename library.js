@@ -893,29 +893,34 @@ function escHtml(s) {
 }
 
 // ── Auto-tags ─────────────────────────────────────────────────
+// Clean single-word tags only. No compound strings, no separators.
 function autoTags(snap) {
     const tags = [];
     const s = snap.schema || {};
-    if (snap.isDark === true)  tags.push('dark');
-    if (snap.isDark === false) tags.push('light');
 
-    // Roundness
+    // Light / Dark
+    if (snap.isDark === true)  tags.push('Dark');
+    if (snap.isDark === false) tags.push('Light');
+
+    // Radius feel — one word
     if (s.radius) {
-        if (/999|pill/i.test(s.radius))              tags.push('pill');
-        else if (/^[0-3]px|0px/.test(s.radius))      tags.push('sharp');
-        else if (/1[6-9]px|2\d+px/.test(s.radius))   tags.push('rounded');
+        if (/999|pill/i.test(s.radius))             tags.push('Pill');
+        else if (/^[0-3]px/.test(s.radius))         tags.push('Sharp');
+        else if (/1[6-9]px|2\d+px/.test(s.radius))  tags.push('Rounded');
     }
 
-    // Vibe
-    if (s.vibe) tags.push(s.vibe.toLowerCase().replace(/\s+/g, '-'));
+    // Colour mood — from vibe string, pick only the useful single words
+    const vibeStr = (s.vibe || '').toLowerCase();
+    if (vibeStr.includes('vibrant') || vibeStr.includes('colorful')) tags.push('Vibrant');
+    if (vibeStr.includes('minimal') || vibeStr.includes('monochrome')) tags.push('Minimal');
+    if (vibeStr.includes('gradient')) tags.push('Gradient');
+    if (vibeStr.includes('modern'))   tags.push('Modern');
+    if (vibeStr.includes('soft'))     tags.push('Soft');
 
-    // Gradient
-    if (s.gradient) tags.push('gradient');
-
-    // Font category
+    // Font style
     const hf = (s.headingFont || '').toLowerCase();
-    if (/serif(?!less)/.test(hf) && !/sans/.test(hf)) tags.push('serif');
-    else if (/mono/.test(hf))                          tags.push('monospace');
+    if (/serif(?!less)/.test(hf) && !/sans/.test(hf)) tags.push('Serif');
+    else if (/mono/.test(hf))                          tags.push('Monospace');
 
     return [...new Set(tags)];
 }
