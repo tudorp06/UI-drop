@@ -505,10 +505,31 @@ body.compare-mode .snap-check { display:flex; }
   color:var(--text); border-color:rgba(120,150,230,.35); background:rgba(120,150,230,.06);
 }
 
+.detail-send-header {
+  display:flex; align-items:center; justify-content:space-between;
+  gap:12px; margin-bottom:10px;
+}
+.detail-format-toggle {
+  display:inline-flex; gap:2px; padding:2px;
+  background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);
+  border-radius:7px;
+}
+.dfmt-opt {
+  font-family:var(--font-b); font-size:11px; font-weight:600;
+  color:rgba(255,255,255,0.45); background:transparent; border:none;
+  border-radius:5px; padding:4px 10px; cursor:pointer;
+  transition:color .15s, background .15s;
+}
+.dfmt-opt:hover { color:rgba(255,255,255,0.78); }
+.dfmt-opt.dfmt-active {
+  color:#fff;
+  background:linear-gradient(135deg, rgba(192,132,252,0.22), rgba(124,58,237,0.28), rgba(56,189,248,0.16));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.08);
+}
+
 .detail-send-label {
   font-family:var(--font-m); font-size:9px; font-weight:600;
   letter-spacing:1px; text-transform:uppercase; color:var(--muted);
-  margin-bottom:10px;
 }
 
 .detail-send-row {
@@ -954,6 +975,7 @@ body.compare-mode .snap-pin { display:none !important; }
 </div>
 
 <script src="ExtPay.js"></script>
+<script src="skill-markdown.js"></script>
 <script src="library.js"></script>
 </body>
 </html>

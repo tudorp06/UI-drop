@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "UIDrop: Snap a site's Design System to Claude, GPT, Lovable, Manus, Cursor",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "Extract colors, fonts, spacing & components — buttons, cards, chips — from any site. Send to Claude, GPT, Cursor, Lovable or Manus.",
 
   "icons": {
@@ -41,7 +41,7 @@
 
   "web_accessible_resources": [
     {
-      "resources": ["library.html", "library.js", "icons/*", "icons/lovable-color.png", "icons/manus.png"],
+      "resources": ["library.html", "library.js", "skill-markdown.js", "icons/*", "icons/lovable-color.png", "icons/manus.png"],
       "matches":   ["<all_urls>"]
     }
   ],

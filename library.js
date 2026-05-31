@@ -367,7 +367,13 @@ function openDetail(id) {
                Poster PNG
              </button>
            </div>
-           <div class="detail-send-label">Send to</div>
+           <div class="detail-send-header">
+             <span class="detail-send-label">Send to</span>
+             <div class="detail-format-toggle" id="detailFormatToggle" role="tablist">
+               <button class="dfmt-opt dfmt-active" data-mode="brief">Prompt</button>
+               <button class="dfmt-opt" data-mode="skill">system.md</button>
+             </div>
+           </div>
            <div class="detail-send-row">
              <button class="detail-send-btn dsb-claude" id="detailBtnClaude">
                <div class="dsb-icon"><img src="icons/claude-logo-64.png" class="dsb-logo" alt="Claude"/></div>
@@ -470,37 +476,53 @@ function openDetail(id) {
         applyFilters();
     });
 
+    // ── Format toggle: build the .md once, swap on click ──
+    // activePrompt is what every send/copy button below reads.
+    const skillMd = (snap.schema && typeof buildSkillMarkdown === 'function')
+        ? buildSkillMarkdown(snap.schema, snap.siteName || '')
+        : '';
+    let activePrompt = snap.finalPrompt || '';
+    document.querySelectorAll('#detailFormatToggle .dfmt-opt').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const mode = btn.dataset.mode;
+            document.querySelectorAll('#detailFormatToggle .dfmt-opt').forEach(b => {
+                b.classList.toggle('dfmt-active', b.dataset.mode === mode);
+            });
+            activePrompt = (mode === 'skill') ? skillMd : (snap.finalPrompt || '');
+        });
+    });
+
     // Send to Claude
     document.getElementById('detailBtnClaude').addEventListener('click', () => {
-        if (!snap.finalPrompt) return;
+        if (!activePrompt) return;
         chrome.runtime.sendMessage({
             action: 'openWithPrompt', target: 'claude',
-            url: 'https://claude.ai/new', prompt: snap.finalPrompt, screenshot: snap.thumbnail
+            url: 'https://claude.ai/new', prompt: activePrompt, screenshot: snap.thumbnail
         });
     });
 
     // Send to Lovable
     document.getElementById('detailBtnLovable').addEventListener('click', () => {
-        if (!snap.finalPrompt) return;
+        if (!activePrompt) return;
         chrome.runtime.sendMessage({
             action: 'openWithPrompt', target: 'lovable',
-            url: 'https://lovable.dev/', prompt: snap.finalPrompt, screenshot: snap.thumbnail
+            url: 'https://lovable.dev/', prompt: activePrompt, screenshot: snap.thumbnail
         });
     });
 
     // Send to Manus
     document.getElementById('detailBtnManus').addEventListener('click', () => {
-        if (!snap.finalPrompt) return;
+        if (!activePrompt) return;
         chrome.runtime.sendMessage({
             action: 'openWithPrompt', target: 'manus',
-            url: 'https://manus.im/', prompt: snap.finalPrompt, screenshot: snap.thumbnail
+            url: 'https://manus.im/', prompt: activePrompt, screenshot: snap.thumbnail
         });
     });
 
     // Cursor — just copies to clipboard (same as popup)
     document.getElementById('detailBtnCursor').addEventListener('click', () => {
-        if (!snap.finalPrompt) return;
-        navigator.clipboard.writeText(snap.finalPrompt).then(() => {
+        if (!activePrompt) return;
+        navigator.clipboard.writeText(activePrompt).then(() => {
             const btn = document.getElementById('detailBtnCursor');
             const orig = btn.innerHTML;
             btn.innerHTML = '✓ Copied!';
@@ -510,10 +532,10 @@ function openDetail(id) {
 
     // Codex / ChatGPT
     document.getElementById('detailBtnCodex').addEventListener('click', () => {
-        if (!snap.finalPrompt) return;
+        if (!activePrompt) return;
         chrome.runtime.sendMessage({
             action: 'openWithPrompt', target: 'chatgpt',
-            url: 'https://chatgpt.com/', prompt: snap.finalPrompt, screenshot: snap.thumbnail
+            url: 'https://chatgpt.com/', prompt: activePrompt, screenshot: snap.thumbnail
         });
     });
 
@@ -524,8 +546,8 @@ function openDetail(id) {
 
     // Wire up copy button
     document.getElementById('detailCopyBtn').addEventListener('click', () => {
-        if (!snap.finalPrompt) return;
-        navigator.clipboard.writeText(snap.finalPrompt).then(() => {
+        if (!activePrompt) return;
+        navigator.clipboard.writeText(activePrompt).then(() => {
             const btn = document.getElementById('detailCopyBtn');
             const orig = btn.innerHTML;
             btn.textContent = '✓ Copied!';
