@@ -1049,13 +1049,13 @@ body::-webkit-scrollbar-corner {
 
 .library-btn {
   width: 100%;
-  padding: 13px 16px;
-  background: linear-gradient(135deg, rgba(192,132,252,0.08) 0%, rgba(124,58,237,0.12) 50%, rgba(56,189,248,0.07) 100%);
-  border: 1px solid rgba(138,109,255,0.35);
+  padding: 15px 16px;
+  background: linear-gradient(135deg, rgba(192,132,252,0.13) 0%, rgba(124,58,237,0.18) 50%, rgba(56,189,248,0.10) 100%);
+  border: 1px solid rgba(138,109,255,0.5);
   border-radius: 10px;
-  color: var(--text-dim);
+  color: rgba(255,255,255,0.88);
   font-family: 'Switzer', system-ui, sans-serif;
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 600;
   letter-spacing: -0.1px;
   cursor: pointer;
@@ -1075,11 +1075,11 @@ body::-webkit-scrollbar-corner {
   margin-left: auto;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   font-family: 'Switzer', system-ui, sans-serif;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.1px;
+  letter-spacing: 0.2px;
   color: rgba(255,255,255,0.95);
   background: linear-gradient(135deg, rgba(255,107,43,0.18), rgba(138,109,255,0.22), rgba(91,141,239,0.18));
   border: 1px solid rgba(138,109,255,0.4);
