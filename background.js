@@ -27,8 +27,38 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
+// Map each target to the URL pattern we search for in existing tabs
+const TARGET_PATTERNS = {
+  claude:   '*://claude.ai/*',
+  chatgpt:  '*://chatgpt.com/*',
+  lovable:  '*://lovable.dev/*',
+  manus:    '*://manus.im/*',
+};
+
+async function findExistingTab(target) {
+  const pattern = TARGET_PATTERNS[target];
+  if (!pattern) return null;
+  const tabs = await chrome.tabs.query({ url: pattern });
+  // Prefer an already-active tab, otherwise take the most recently used one
+  return tabs.find(t => t.active) || tabs[tabs.length - 1] || null;
+}
+
 async function openAndInject({ target, url, prompt, screenshot, skillFile }) {
-  const tab = await chrome.tabs.create({ url });
+  // Reuse an existing tab for this AI tool if one is already open —
+  // no need to spam the user with extra tabs every single snap.
+  let tab = await findExistingTab(target);
+
+  if (tab) {
+    // Navigate to a fresh conversation so the inject doesn't land mid-thread
+    const freshUrl = target === 'claude'  ? 'https://claude.ai/new'
+                   : target === 'chatgpt' ? 'https://chatgpt.com/'
+                   : url;
+    await chrome.tabs.update(tab.id, { url: freshUrl, active: true });
+    // Bring the tab's window to front
+    await chrome.windows.update(tab.windowId, { focused: true });
+  } else {
+    tab = await chrome.tabs.create({ url });
+  }
 
   await waitForTabComplete(tab.id);
   await new Promise(r => setTimeout(r, 2500));
