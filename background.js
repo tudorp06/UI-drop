@@ -130,7 +130,8 @@ async function injectPromptIntoEditor(text, imageDataUrl, target, skillFile) {
       const mdBlob = new Blob([skillFile.content], { type: 'text/plain' });
       const mdFileObj = new File([mdBlob], skillFile.filename, { type: 'text/plain' });
 
-      // Try paste event first (works on Claude + ChatGPT)
+      // Single paste — ClipboardEvent works on Claude + ChatGPT.
+      // No file input fallback: that caused the file to attach twice.
       const dtMd = new DataTransfer();
       dtMd.items.add(mdFileObj);
       editor.focus();
@@ -138,22 +139,6 @@ async function injectPromptIntoEditor(text, imageDataUrl, target, skillFile) {
         bubbles: true, cancelable: true, clipboardData: dtMd
       }));
       await new Promise(r => setTimeout(r, 800));
-
-      // Fallback: file input (if paste was ignored)
-      const allInputs = Array.from(document.querySelectorAll('input[type="file"]'));
-      const mdInput = allInputs.find(i =>
-        !i.accept ||
-        i.accept.includes('*') ||
-        i.accept.includes('text') ||
-        i.accept.includes('.md')
-      ) || allInputs[0];
-      if (mdInput) {
-        const dtMd2 = new DataTransfer();
-        dtMd2.items.add(mdFileObj);
-        mdInput.files = dtMd2.files;
-        mdInput.dispatchEvent(new Event('change', { bubbles: true }));
-        await new Promise(r => setTimeout(r, 600));
-      }
     } catch (e) {
       console.warn('[UIDrop] .md file attach failed', e);
     }
