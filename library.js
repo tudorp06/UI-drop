@@ -1067,79 +1067,96 @@ function showInsightsModal() {
             fontCount[name] = (fontCount[name] || 0) + 1;
         });
     });
-    const sortedFonts = Object.entries(fontCount).sort((a,b) => b[1]-a[1]).slice(0, 10);
+    const sortedFonts = Object.entries(fontCount).sort((a,b) => b[1]-a[1]).slice(0, 8);
     const maxFont = sortedFonts[0]?.[1] || 1;
 
-    // Color frequency (primary colors)
+    // Primary colors
     const colorCount = {};
     allSnaps.forEach(s => {
         const p = s.schema?.primaryColor;
         if (p) colorCount[p] = (colorCount[p] || 0) + 1;
     });
-    const sortedColors = Object.entries(colorCount).sort((a,b) => b[1]-a[1]).slice(0, 8);
+    const sortedColors = Object.entries(colorCount).sort((a,b) => b[1]-a[1]).slice(0, 10);
 
     // Tag frequency
     const tagCount = {};
     allSnaps.forEach(s => (s.tags||[]).forEach(t => { tagCount[t] = (tagCount[t]||0) + 1; }));
-    const sortedTags = Object.entries(tagCount).sort((a,b) => b[1]-a[1]).slice(0, 10);
+    const sortedTags = Object.entries(tagCount).sort((a,b) => b[1]-a[1]).slice(0, 8);
     const maxTag = sortedTags[0]?.[1] || 1;
 
     // Dark vs light
     const darkCount  = allSnaps.filter(s => s.isDark === true).length;
     const lightCount = allSnaps.filter(s => s.isDark === false).length;
+    const total = allSnaps.length || 1;
 
     body.innerHTML = `
-    ${sortedFonts.length ? `
-    <div class="insights-section">
-      <div class="insights-section-label">Most used fonts</div>
-      ${sortedFonts.map(([name, count]) => `
-        <div class="insights-row">
-          <span class="insights-name">${escHtml(name)}</span>
-          <div class="insights-bar"><div class="insights-fill" style="width:${Math.round(count/maxFont*100)}%"></div></div>
-          <span class="insights-num">${count}/${allSnaps.length}</span>
+    <!-- Primary colors — big interactive swatches at top -->
+    ${sortedColors.length ? `
+    <div class="ins-colors-grid">
+      ${sortedColors.map(([hex, count], i) => `
+        <div class="ins-color-swatch" style="background:${hex};" title="${hex}"
+             onclick="navigator.clipboard.writeText('${hex}').then(()=>{this.classList.add('copied');setTimeout(()=>this.classList.remove('copied'),1400)})">
+          <span class="ins-color-hex">${hex.toUpperCase()}</span>
+          <span class="ins-color-count">${count}×</span>
         </div>`).join('')}
     </div>` : ''}
 
-    ${sortedTags.length ? `
-    <div class="insights-section">
-      <div class="insights-section-label">Tag breakdown</div>
-      ${sortedTags.map(([tag, count]) => `
-        <div class="insights-row">
-          <span class="insights-name">${escHtml(tag)}</span>
-          <div class="insights-bar"><div class="insights-fill" style="width:${Math.round(count/maxTag*100)}%;background:var(--blue)"></div></div>
-          <span class="insights-num">${count}</span>
-        </div>`).join('')}
-    </div>` : ''}
-
-    ${(darkCount + lightCount) > 0 ? `
-    <div class="insights-section">
-      <div class="insights-section-label">Dark vs Light</div>
-      <div class="insights-row">
-        <span class="insights-name">🌙 Dark</span>
-        <div class="insights-bar"><div class="insights-fill" style="width:${Math.round(darkCount/allSnaps.length*100)}%;background:#8a6dff"></div></div>
-        <span class="insights-num">${darkCount}</span>
-      </div>
-      <div class="insights-row">
-        <span class="insights-name">☀️ Light</span>
-        <div class="insights-bar"><div class="insights-fill" style="width:${Math.round(lightCount/allSnaps.length*100)}%;background:#f59e0b"></div></div>
-        <span class="insights-num">${lightCount}</span>
-      </div>
-    </div>` : ''}
-
-    ${sortedColors.length > 1 ? `
-    <div class="insights-section">
-      <div class="insights-section-label">Primary colors</div>
-      <div style="display:flex;flex-wrap:wrap;gap:10px;">
-        ${sortedColors.map(([hex, count]) => `
-          <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
-            <div style="width:36px;height:36px;border-radius:8px;background:${hex};border:1px solid rgba(255,255,255,.08);" title="${hex}"></div>
-            <span style="font-family:var(--font-m);font-size:9px;color:var(--faint);">${count}×</span>
+    <!-- Two column grid: fonts + tags -->
+    <div class="ins-two-col">
+      ${sortedFonts.length ? `
+      <div class="ins-section">
+        <div class="ins-section-label">Most used fonts</div>
+        ${sortedFonts.map(([name, count]) => `
+          <div class="ins-bar-row">
+            <span class="ins-bar-name">${escHtml(name)}</span>
+            <div class="ins-bar-track">
+              <div class="ins-bar-fill ins-bar-purple" data-w="${Math.round(count/maxFont*100)}"></div>
+            </div>
+            <span class="ins-bar-count">${count}</span>
           </div>`).join('')}
+      </div>` : ''}
+
+      ${sortedTags.length ? `
+      <div class="ins-section">
+        <div class="ins-section-label">Tag breakdown</div>
+        ${sortedTags.map(([tag, count]) => `
+          <div class="ins-bar-row">
+            <span class="ins-bar-name">${escHtml(tag)}</span>
+            <div class="ins-bar-track">
+              <div class="ins-bar-fill ins-bar-blue" data-w="${Math.round(count/maxTag*100)}"></div>
+            </div>
+            <span class="ins-bar-count">${count}</span>
+          </div>`).join('')}
+      </div>` : ''}
+    </div>
+
+    <!-- Dark vs Light — big pill split -->
+    ${(darkCount + lightCount) > 0 ? `
+    <div class="ins-section">
+      <div class="ins-section-label">Dark vs Light</div>
+      <div class="ins-split-bar">
+        <div class="ins-split-dark" style="width:${Math.round(darkCount/total*100)}%">
+          <span>🌙 ${darkCount}</span>
+        </div>
+        <div class="ins-split-light" style="width:${Math.round(lightCount/total*100)}%">
+          <span>☀️ ${lightCount}</span>
+        </div>
+      </div>
+      <div class="ins-split-labels">
+        <span>Dark ${Math.round(darkCount/total*100)}%</span>
+        <span>Light ${Math.round(lightCount/total*100)}%</span>
       </div>
     </div>` : ''}
     `;
 
     modal.classList.remove('hidden');
+
+    // Animate bars after paint
+    requestAnimationFrame(() => {
+        body.querySelectorAll('.ins-bar-fill[data-w]').forEach(el => {
+            el.style.width = el.dataset.w + '%';
+        });
+    });
 }
 
 // ── Palette poster export (Canvas PNG) ───────────────────────

@@ -1125,7 +1125,23 @@ async function saveSnapToHistory(schema, tokens, screenshot) {
     };
 
     const { snapHistory = [] } = await chrome.storage.local.get('snapHistory');
-    const updated = [snap, ...snapHistory].slice(0, 50);   // keep 50 most recent
+
+    // Deduplication: if this site was snapped before, replace that entry
+    // so the library never shows the same site twice.
+    const existingIdx = snapHistory.findIndex(s => s.siteName === snap.siteName);
+    let updated;
+    if (existingIdx !== -1) {
+        // Preserve the original id so saved tags/pins/collections survive
+        snap.id         = snapHistory[existingIdx].id;
+        snap.starred    = snapHistory[existingIdx].starred;
+        snap.pinned     = snapHistory[existingIdx].pinned;
+        snap.tags       = snapHistory[existingIdx].tags;
+        snap.collectionId = snapHistory[existingIdx].collectionId;
+        updated = [snap, ...snapHistory.filter((_, i) => i !== existingIdx)].slice(0, 50);
+    } else {
+        updated = [snap, ...snapHistory].slice(0, 50);
+    }
+
     await chrome.storage.local.set({ snapHistory: updated });
 }
 
