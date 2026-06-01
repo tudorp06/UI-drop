@@ -873,7 +873,7 @@ function buildSendPayload() {
         `Use these tokens to build a similar UI — don't copy the design, build something original with the same feel.`;
     return {
         prompt: shortPrompt,
-        skillFile: { content: skillMarkdown, filename: `${slug}-design-system.md` }
+        skillFile: { content: skillMarkdown, filename: `${slug}.md` }
     };
 }
 

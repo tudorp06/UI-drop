@@ -498,7 +498,7 @@ function openDetail(id) {
     // Helper: build skillFile payload when in skill mode
     function detailSkillFile() {
         return (activeMode === 'skill' && skillMd)
-            ? { content: skillMd, filename: `${snapSlug}-design-system.md` }
+            ? { content: skillMd, filename: `${snapSlug}.md` }
             : null;
     }
 
