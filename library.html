@@ -64,42 +64,65 @@ body::-webkit-scrollbar-thumb:hover { background:rgba(138,109,255,0.6); }
 html::-webkit-scrollbar-corner,
 body::-webkit-scrollbar-corner { background:transparent; }
 
-/* ── TOPBAR ── */
+/* ── TOPBAR — DaisyUI inspired ── */
 .topbar {
   position:sticky; top:0; z-index:200;
-  background:rgba(7,9,15,0.94); backdrop-filter:blur(24px);
+  background:rgba(7,9,15,0.96); backdrop-filter:blur(28px);
   border-bottom:1px solid var(--line);
-  height:58px; padding:0 28px;
-  display:flex; align-items:center; gap:14px;
+  height:62px; padding:0 24px;
+  display:flex; align-items:center; gap:0;
 }
+
+/* Left section: logo + title */
+.topbar-left { display:flex; align-items:center; gap:12px; flex-shrink:0; }
 .topbar-logo { display:flex; align-items:center; gap:8px; text-decoration:none; flex-shrink:0; }
-.topbar-logo img { width:22px; height:22px; object-fit:contain; }
-.topbar-wordmark { font-family:var(--font-h); font-size:17px; font-weight:800; letter-spacing:-.5px; color:#fff; }
+.topbar-logo img { width:24px; height:24px; object-fit:contain; }
+.topbar-wordmark { font-family:var(--font-h); font-size:18px; font-weight:800; letter-spacing:-.5px; color:#fff; }
 .topbar-wordmark em { font-style:normal; background:var(--grad); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
-.topbar-div { width:1px; height:18px; background:var(--line-2); flex-shrink:0; }
-.topbar-title { font-size:12.5px; font-weight:600; color:var(--muted); }
+
+.topbar-sep { width:1px; height:20px; background:var(--line-2); flex-shrink:0; margin:0 12px; }
 
 .topbar-title {
-  font-size:12.5px; font-weight:600; color:var(--muted);
+  font-size:13px; font-weight:600; color:var(--muted);
   display:inline-flex; align-items:center; gap:5px;
 }
-.title-premium-dot {
-  flex-shrink:0; opacity:.85;
-  transition:opacity .2s;
-}
+.title-premium-dot { flex-shrink:0; opacity:.85; transition:opacity .2s; }
 .title-premium-dot:hover { opacity:1; }
-
 .topbar-count { font-size:12px; color:var(--faint); flex-shrink:0; }
 
-/* Small icon buttons in topbar (star filter, view toggle) */
+/* Centre section: search (takes available space) */
+.topbar-center { flex:1; display:flex; align-items:center; justify-content:center; padding:0 24px; }
+.topbar-search { position:relative; width:100%; max-width:320px; }
+.topbar-search input {
+  background:var(--card); border:1px solid var(--line-2);
+  border-radius:9px; color:var(--text); font-family:var(--font-b);
+  font-size:13px; padding:8px 48px 8px 36px; width:100%; outline:none;
+  transition:border-color .2s, box-shadow .2s;
+}
+.topbar-search input:focus { border-color:rgba(138,109,255,.4); box-shadow:0 0 0 3px rgba(138,109,255,.08); }
+.topbar-search input::placeholder { color:var(--faint); }
+.topbar-search-icon { position:absolute; left:11px; top:50%; transform:translateY(-50%); color:var(--faint); pointer-events:none; }
+.topbar-search-kbd {
+  position:absolute; right:9px; top:50%; transform:translateY(-50%);
+  display:flex; align-items:center; gap:2px;
+  font-family:var(--font-b); font-size:10px; font-weight:600;
+  color:var(--faint); background:rgba(255,255,255,0.05);
+  border:1px solid var(--line-2); border-radius:5px; padding:2px 6px;
+  pointer-events:none; letter-spacing:.2px;
+}
+
+/* Right section: action buttons */
+.topbar-right { display:flex; align-items:center; gap:6px; flex-shrink:0; }
+
+/* Small icon buttons */
 .topbar-icon-btn {
-  flex-shrink:0; width:34px; height:34px; border-radius:8px;
+  flex-shrink:0; width:36px; height:36px; border-radius:9px;
   background:transparent; border:1px solid var(--line-2);
   cursor:pointer; color:var(--muted);
   display:flex; align-items:center; justify-content:center;
   transition:color .15s,border-color .15s,background .15s;
 }
-.topbar-icon-btn:hover { color:var(--text); border-color:rgba(120,150,230,.35); }
+.topbar-icon-btn:hover { color:var(--text); border-color:rgba(120,150,230,.35); background:rgba(255,255,255,.04); }
 .topbar-icon-btn.active {
   color:#f59e0b; background:rgba(245,158,11,.1); border-color:rgba(245,158,11,.35);
 }
@@ -107,29 +130,16 @@ body::-webkit-scrollbar-corner { background:transparent; }
 
 /* Compare mode button */
 .compare-mode-btn {
-  margin-left:auto; flex-shrink:0;
-  padding:7px 16px; border-radius:8px; border:1px solid var(--line-2);
+  flex-shrink:0; padding:7px 14px; border-radius:9px; border:1px solid var(--line-2);
   background:transparent; cursor:pointer;
   color:var(--muted); font-family:var(--font-b); font-size:12.5px; font-weight:600;
   display:flex; align-items:center; gap:7px;
   transition:color .15s,border-color .15s,background .15s;
 }
-.compare-mode-btn:hover { color:var(--text); border-color:var(--line-2); }
+.compare-mode-btn:hover { color:var(--text); border-color:rgba(120,150,230,.3); background:rgba(255,255,255,.04); }
 .compare-mode-btn.active {
-  color:#fff; background:rgba(138,109,255,0.15);
-  border-color:rgba(138,109,255,0.45);
+  color:#fff; background:rgba(138,109,255,0.15); border-color:rgba(138,109,255,0.45);
 }
-
-.topbar-search { position:relative; flex-shrink:0; }
-.topbar-search input {
-  background:var(--card); border:1px solid var(--line-2);
-  border-radius:8px; color:var(--text); font-family:var(--font-b);
-  font-size:13px; padding:7px 14px 7px 34px; width:220px; outline:none;
-  transition:border-color .2s;
-}
-.topbar-search input:focus { border-color:rgba(138,109,255,.4); }
-.topbar-search input::placeholder { color:var(--faint); }
-.topbar-search svg { position:absolute; left:10px; top:50%; transform:translateY(-50%); color:var(--faint); pointer-events:none; }
 
 /* ── COMPARE HINT BAR ── */
 .compare-hint {
@@ -793,55 +803,64 @@ body.compare-mode .snap-pin { display:none !important; }
 </head>
 <body>
 
-<!-- Topbar -->
+<!-- Topbar — DaisyUI style: left · center · right -->
 <div class="topbar">
-  <a class="topbar-logo" href="#">
-    <img src="icons/icon48.png" alt="UIDrop"/>
-    <span class="topbar-wordmark">UI<em>Drop</em></span>
-  </a>
-  <div class="topbar-div"></div>
-  <span class="topbar-title">
-    Snap Library
-    <svg class="title-premium-dot" width="7" height="9" viewBox="0 0 24 30" fill="none" title="Pro access">
-      <path d="M12 0C12 0 1 14 1 20a11 11 0 0022 0C23 14 12 0 12 0z" fill="url(#tdg)"/>
-      <defs>
-        <linearGradient id="tdg" x1="0" y1="0" x2="24" y2="30" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stop-color="#ff6b2b"/>
-          <stop offset="55%" stop-color="#8a6dff"/>
-          <stop offset="100%" stop-color="#5b8def"/>
-        </linearGradient>
-      </defs>
-    </svg>
-  </span>
 
-  <span class="topbar-count" id="snapCount"></span>
-
-  <button class="compare-mode-btn" id="compareModeBtn">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="18" rx="1"/></svg>
-    Compare
-  </button>
-
-  <button class="topbar-icon-btn" id="starFilterBtn" title="Show favourites only">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-    </svg>
-  </button>
-
-  <button class="topbar-icon-btn" id="insightsBtn" title="Library insights">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-  </button>
-
-  <button class="topbar-icon-btn" id="viewToggleBtn" title="Toggle moodboard view">
-    <!-- grid icon (default) -->
-    <svg class="view-icon-grid" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-    <!-- moodboard icon (full-bleed) -->
-    <svg class="view-icon-mood hidden" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg>
-  </button>
-
-  <div class="topbar-search">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-    <input type="text" id="searchInput" placeholder="Search sites, tags…"/>
+  <!-- Left: logo + title -->
+  <div class="topbar-left">
+    <a class="topbar-logo" href="#">
+      <img src="icons/icon48.png" alt="UIDrop"/>
+      <span class="topbar-wordmark">UI<em>Drop</em></span>
+    </a>
+    <div class="topbar-sep"></div>
+    <span class="topbar-title">
+      Snap Library
+      <svg class="title-premium-dot" width="7" height="9" viewBox="0 0 24 30" fill="none" title="Pro access">
+        <path d="M12 0C12 0 1 14 1 20a11 11 0 0022 0C23 14 12 0 12 0z" fill="url(#tdg)"/>
+        <defs>
+          <linearGradient id="tdg" x1="0" y1="0" x2="24" y2="30" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#c084fc"/>
+            <stop offset="55%" stop-color="#7c3aed"/>
+            <stop offset="100%" stop-color="#38bdf8"/>
+          </linearGradient>
+        </defs>
+      </svg>
+    </span>
+    <span class="topbar-count" id="snapCount"></span>
   </div>
+
+  <!-- Centre: search -->
+  <div class="topbar-center">
+    <div class="topbar-search">
+      <svg class="topbar-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="searchInput" placeholder="Search sites, tags…"/>
+      <span class="topbar-search-kbd">⌘K</span>
+    </div>
+  </div>
+
+  <!-- Right: actions -->
+  <div class="topbar-right">
+    <button class="compare-mode-btn" id="compareModeBtn">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="18" rx="1"/></svg>
+      Compare
+    </button>
+
+    <button class="topbar-icon-btn" id="starFilterBtn" title="Favourites">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+      </svg>
+    </button>
+
+    <button class="topbar-icon-btn" id="insightsBtn" title="Insights">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+    </button>
+
+    <button class="topbar-icon-btn" id="viewToggleBtn" title="Toggle view">
+      <svg class="view-icon-grid" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      <svg class="view-icon-mood hidden" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg>
+    </button>
+  </div>
+
 </div>
 
 <!-- Compare hint bar -->
