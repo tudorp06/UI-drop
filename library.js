@@ -476,15 +476,18 @@ function openDetail(id) {
         applyFilters();
     });
 
-    // ── Format toggle: build the .md once, swap on click ──
-    // activePrompt is what every send/copy button below reads.
+    // ── Format toggle ──
     const skillMd = (snap.schema && typeof buildSkillMarkdown === 'function')
         ? buildSkillMarkdown(snap.schema, snap.siteName || '')
         : '';
+    const snapSlug = (snap.siteName || 'site').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'site';
     let activePrompt = snap.finalPrompt || '';
+    let activeMode   = 'brief';  // tracks current format mode
+
     document.querySelectorAll('#detailFormatToggle .dfmt-opt').forEach(btn => {
         btn.addEventListener('click', () => {
             const mode = btn.dataset.mode;
+            activeMode = mode;
             document.querySelectorAll('#detailFormatToggle .dfmt-opt').forEach(b => {
                 b.classList.toggle('dfmt-active', b.dataset.mode === mode);
             });
@@ -492,12 +495,20 @@ function openDetail(id) {
         });
     });
 
+    // Helper: build skillFile payload when in skill mode
+    function detailSkillFile() {
+        return (activeMode === 'skill' && skillMd)
+            ? { content: skillMd, filename: `${snapSlug}-design-system.md` }
+            : null;
+    }
+
     // Send to Claude
     document.getElementById('detailBtnClaude').addEventListener('click', () => {
         if (!activePrompt) return;
         chrome.runtime.sendMessage({
             action: 'openWithPrompt', target: 'claude',
-            url: 'https://claude.ai/new', prompt: activePrompt, screenshot: snap.thumbnail
+            url: 'https://claude.ai/new',
+            prompt: activePrompt, screenshot: snap.thumbnail, skillFile: detailSkillFile()
         });
     });
 
@@ -506,7 +517,8 @@ function openDetail(id) {
         if (!activePrompt) return;
         chrome.runtime.sendMessage({
             action: 'openWithPrompt', target: 'lovable',
-            url: 'https://lovable.dev/', prompt: activePrompt, screenshot: snap.thumbnail
+            url: 'https://lovable.dev/',
+            prompt: activePrompt, screenshot: snap.thumbnail, skillFile: detailSkillFile()
         });
     });
 
@@ -515,7 +527,8 @@ function openDetail(id) {
         if (!activePrompt) return;
         chrome.runtime.sendMessage({
             action: 'openWithPrompt', target: 'manus',
-            url: 'https://manus.im/', prompt: activePrompt, screenshot: snap.thumbnail
+            url: 'https://manus.im/',
+            prompt: activePrompt, screenshot: snap.thumbnail, skillFile: detailSkillFile()
         });
     });
 

@@ -27,7 +27,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
-async function openAndInject({ target, url, prompt, screenshot }) {
+async function openAndInject({ target, url, prompt, screenshot, skillFile }) {
   const tab = await chrome.tabs.create({ url });
 
   await waitForTabComplete(tab.id);
@@ -37,7 +37,7 @@ async function openAndInject({ target, url, prompt, screenshot }) {
     const [result] = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       func: injectPromptIntoEditor,
-      args: [prompt, screenshot, target]
+      args: [prompt, screenshot, target, skillFile || null]
     });
     console.log('UIDrop: inject result', result?.result);
   } catch (e) {
@@ -57,7 +57,7 @@ function waitForTabComplete(tabId) {
   });
 }
 
-async function injectPromptIntoEditor(text, imageDataUrl, target) {
+async function injectPromptIntoEditor(text, imageDataUrl, target, skillFile) {
 
   // ── 1. Find the editor ──────────────────────────────────────
   const selectors = target === 'claude'
@@ -119,10 +119,47 @@ async function injectPromptIntoEditor(text, imageDataUrl, target) {
     }
   }
 
-  // Brief pause so the editor can settle before we attach the image
+  // Brief pause so the editor can settle
   await new Promise(r => setTimeout(r, 400));
 
-  // ── 3. Attach SCREENSHOT ───────────────────────────────────
+  // ── 3. Attach system.md FILE (if skill mode) ──────────────
+  // Creates a real .md file and attaches it as a document —
+  // Claude reads it as context, much richer than pasting text.
+  if (skillFile && skillFile.content && skillFile.filename) {
+    try {
+      const mdBlob = new Blob([skillFile.content], { type: 'text/plain' });
+      const mdFileObj = new File([mdBlob], skillFile.filename, { type: 'text/plain' });
+
+      // Try paste event first (works on Claude + ChatGPT)
+      const dtMd = new DataTransfer();
+      dtMd.items.add(mdFileObj);
+      editor.focus();
+      editor.dispatchEvent(new ClipboardEvent('paste', {
+        bubbles: true, cancelable: true, clipboardData: dtMd
+      }));
+      await new Promise(r => setTimeout(r, 800));
+
+      // Fallback: file input (if paste was ignored)
+      const allInputs = Array.from(document.querySelectorAll('input[type="file"]'));
+      const mdInput = allInputs.find(i =>
+        !i.accept ||
+        i.accept.includes('*') ||
+        i.accept.includes('text') ||
+        i.accept.includes('.md')
+      ) || allInputs[0];
+      if (mdInput) {
+        const dtMd2 = new DataTransfer();
+        dtMd2.items.add(mdFileObj);
+        mdInput.files = dtMd2.files;
+        mdInput.dispatchEvent(new Event('change', { bubbles: true }));
+        await new Promise(r => setTimeout(r, 600));
+      }
+    } catch (e) {
+      console.warn('[UIDrop] .md file attach failed', e);
+    }
+  }
+
+  // ── 4. Attach SCREENSHOT ───────────────────────────────────
   // Completely separate from the text step — a paste event whose
   // clipboardData contains ONLY the image file, no text at all.
   // Because there is no text in the DataTransfer, no editor can

@@ -860,27 +860,42 @@ async function restoreLastSnap() {
     }
 }
 
+// ── Build the payload depending on whether user chose Prompt or system.md ──
+// In 'brief' mode: prompt = full text brief, no skillFile.
+// In 'skill' mode: prompt = short instruction, skillFile = the .md as a real file.
+function buildSendPayload() {
+    if (formatMode !== 'skill' || !skillMarkdown) {
+        return { prompt: finalPrompt, skillFile: null };
+    }
+    const slug = (snappedSiteName || 'site')
+        .replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'site';
+    const shortPrompt = `Here is the design system for ${snappedSiteName || 'this site'} as a .md file.\n` +
+        `Use these tokens to build a similar UI — don't copy the design, build something original with the same feel.`;
+    return {
+        prompt: shortPrompt,
+        skillFile: { content: skillMarkdown, filename: `${slug}-design-system.md` }
+    };
+}
+
 btnClaude.addEventListener('click', async () => {
-    if (!finalPrompt) return showNoSnapWarning();
+    if (!briefPrompt && !skillMarkdown) return showNoSnapWarning();
     const screenshot = await getCurrentScreenshot();
+    const payload = buildSendPayload();
     chrome.runtime.sendMessage({
-        action: 'openWithPrompt',
-        target: 'claude',
+        action: 'openWithPrompt', target: 'claude',
         url: 'https://claude.ai/new',
-        prompt: finalPrompt,
-        screenshot
+        prompt: payload.prompt, screenshot, skillFile: payload.skillFile
     });
 });
 
 btnChatGPT.addEventListener('click', async () => {
-    if (!finalPrompt) return showNoSnapWarning();
+    if (!briefPrompt && !skillMarkdown) return showNoSnapWarning();
     const screenshot = await getCurrentScreenshot();
+    const payload = buildSendPayload();
     chrome.runtime.sendMessage({
-        action: 'openWithPrompt',
-        target: 'chatgpt',
+        action: 'openWithPrompt', target: 'chatgpt',
         url: 'https://chatgpt.com/',
-        prompt: finalPrompt,
-        screenshot
+        prompt: payload.prompt, screenshot, skillFile: payload.skillFile
     });
 });
 
@@ -890,26 +905,24 @@ btnCursor.addEventListener('click', async () => {
 });
 
 btnLovable.addEventListener('click', async () => {
-    if (!finalPrompt) return showNoSnapWarning();
+    if (!briefPrompt && !skillMarkdown) return showNoSnapWarning();
     const screenshot = await getCurrentScreenshot();
+    const payload = buildSendPayload();
     chrome.runtime.sendMessage({
-        action: 'openWithPrompt',
-        target: 'lovable',
+        action: 'openWithPrompt', target: 'lovable',
         url: 'https://lovable.dev/',
-        prompt: finalPrompt,
-        screenshot
+        prompt: payload.prompt, screenshot, skillFile: payload.skillFile
     });
 });
 
 btnManus.addEventListener('click', async () => {
-    if (!finalPrompt) return showNoSnapWarning();
+    if (!briefPrompt && !skillMarkdown) return showNoSnapWarning();
     const screenshot = await getCurrentScreenshot();
+    const payload = buildSendPayload();
     chrome.runtime.sendMessage({
-        action: 'openWithPrompt',
-        target: 'manus',
+        action: 'openWithPrompt', target: 'manus',
         url: 'https://manus.im/',
-        prompt: finalPrompt,
-        screenshot
+        prompt: payload.prompt, screenshot, skillFile: payload.skillFile
     });
 });
 
