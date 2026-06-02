@@ -498,7 +498,14 @@ function buildFinalPrompt(schema) {
     if (Array.isArray(schema.rhythm) && schema.rhythm.length) {
         parts.push(`Rhythm: ${schema.rhythm.join(' · ')}`);
     }
-    parts.push(``, `Palette: ${palette}`);
+    // At-a-glance semantic summary (matches context.dev-style clean top line)
+    const semLine = [
+        schema.primaryColor && `Accent: ${schema.primaryColor}`,
+        schema.surfaceColor && `Background: ${schema.surfaceColor}`,
+        schema.textColor    && `Text: ${schema.textColor}`,
+    ].filter(Boolean).join(' · ');
+    if (semLine) parts.push(``, `Key colors: ${semLine}`);
+    parts.push(``, `Full palette: ${palette}`);
     if (monochromeNote) parts.push(``, monochromeNote);
 
     // ── Typography ─────────────────────────────────────────────

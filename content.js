@@ -1239,38 +1239,72 @@ function scrapeCSSVariables() {
 }
 
 // ── Per-heading-level typography ───────────────────────────────
-// Instead of a single "heading font" and "body font", sample each
-// structural level individually so the AI gets the full type system.
+// Samples each structural level individually. For headings we pick
+// the element with the LARGEST rendered font-size (most prominent
+// display heading), not just the first in DOM order. For body we
+// require substantial text content to avoid nav/label noise.
 function scrapeTypographyHierarchy() {
-  const levels = [
-    { sel: 'h1',                                                     role: 'h1'      },
-    { sel: 'h2',                                                     role: 'h2'      },
-    { sel: 'h3',                                                     role: 'h3'      },
-    { sel: 'h4',                                                     role: 'h4'      },
-    { sel: 'p',                                                      role: 'body'    },
-    { sel: 'code, pre, [class*="code" i], [class*="mono" i]',       role: 'code'    },
-    { sel: 'small, [class*="caption" i], [class*="label" i]',       role: 'caption' },
-  ];
-
   const result = {};
 
-  for (const { sel, role } of levels) {
-    const el = [...document.querySelectorAll(sel)]
-      .find(e => isVisible(e) && (e.textContent?.trim().length || 0) > 1);
-    if (!el) continue;
+  // Pick the largest (most prominent) visible heading at each level.
+  // Falls back to ARIA role headings if semantic elements are missing.
+  const headingLevels = [
+    { sels: ['h1', '[role="heading"][aria-level="1"]'], role: 'h1' },
+    { sels: ['h2', '[role="heading"][aria-level="2"]'], role: 'h2' },
+    { sels: ['h3', '[role="heading"][aria-level="3"]'], role: 'h3' },
+    { sels: ['h4', '[role="heading"][aria-level="4"]'], role: 'h4' },
+  ];
 
-    const s = getComputedStyle(el);
+  for (const { sels, role } of headingLevels) {
+    let best = null, bestSize = 0;
+    for (const sel of sels) {
+      for (const el of document.querySelectorAll(sel)) {
+        if (!isVisible(el) || (el.textContent?.trim().length || 0) < 2) continue;
+        const size = parseFloat(getComputedStyle(el).fontSize) || 0;
+        if (size > bestSize) { best = el; bestSize = size; }
+      }
+    }
+    if (!best) continue;
+    const s = getComputedStyle(best);
     const family = pickIntentFont(s.fontFamily);
     if (!family) continue;
-
     result[role] = {
       family,
-      size:          s.fontSize,
+      size:          s.fontSize,                   // exact px from browser (e.g. "44.415px")
       weight:        s.fontWeight,
       lineHeight:    normalizeLineHeight(s.lineHeight, s.fontSize) || null,
       letterSpacing: (s.letterSpacing && s.letterSpacing !== 'normal' && s.letterSpacing !== '0px')
                        ? s.letterSpacing : null,
     };
+  }
+
+  // Body: longest <p> with real content — avoids nav labels and short captions.
+  const bodyEl = [...document.querySelectorAll('p, [class*="body" i], article')]
+    .filter(e => isVisible(e) && (e.textContent?.trim().length || 0) > 40)
+    .sort((a, b) => (b.textContent?.length || 0) - (a.textContent?.length || 0))[0];
+  if (bodyEl) {
+    const s = getComputedStyle(bodyEl);
+    const family = pickIntentFont(s.fontFamily);
+    if (family) {
+      result['body'] = {
+        family,
+        size:    s.fontSize,
+        weight:  s.fontWeight,
+        lineHeight: normalizeLineHeight(s.lineHeight, s.fontSize) || null,
+        letterSpacing: null,
+      };
+    }
+  }
+
+  // Code: only if a meaningful code element exists.
+  const codeEl = [...document.querySelectorAll('code, pre')]
+    .find(e => isVisible(e) && (e.textContent?.trim().length || 0) > 3);
+  if (codeEl) {
+    const s = getComputedStyle(codeEl);
+    const family = pickIntentFont(s.fontFamily);
+    if (family) {
+      result['code'] = { family, size: s.fontSize, weight: s.fontWeight, lineHeight: null, letterSpacing: null };
+    }
   }
 
   return Object.keys(result).length ? result : null;
