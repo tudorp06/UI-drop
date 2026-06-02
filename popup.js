@@ -206,10 +206,12 @@ function buildDesignSystem(tokens) {
         zIndexScale:           tokens.zIndexScale          || null,
         activeStates:          tokens.activeStates         || null,
         responsiveComponents:  tokens.responsiveComponents || null,
-        // ── Phase 1: depth signals (used by .md/Brief, popup UI untouched) ──
+        // ── Depth signals ──
         framework:             tokens.framework            || null,
         radiusVocabulary:      tokens.radiusVocabulary     || null,
-        rhythm:                tokens.rhythm               || null
+        rhythm:                tokens.rhythm               || null,
+        // isDark must be in schema so skill markdown uses correct mode label
+        isDark:                tokens.isDark               ?? false,
     };
 }
 
