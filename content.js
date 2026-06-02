@@ -1590,8 +1590,7 @@ function detectPageIsDark() {
   // html + body both transparent — common pattern: body:white but a dark full-viewport
   // section (Darkroom, Windsurf, Zentry). Sample major structural elements and check
   // which ones cover ≥ 25% of the viewport; trust the first one with an opaque bg.
-  const vw = window.innerWidth, vh = window.innerHeight;
-  const vpArea = vw * vh;
+  const vpArea = vw * vh;   // vw/vh already declared above
   const structural = [
     ...document.querySelectorAll(
       'body > section, body > div, body > main, body > header, ' +
