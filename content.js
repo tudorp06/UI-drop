@@ -165,11 +165,16 @@ function scrapeDesignTokens() {
 
   // Expose the actual computed page background so derivePalette can anchor
   // surface to it rather than relying solely on frequency ordering.
-  // Kriss (dusty rose), Lusion (lavender), Pika (cream) all have tinted bgs
-  // that lose to white card elements in frequency but ARE the real surface.
+  // Use viewport center-top sampling first — beats html/body which can be set
+  // to a bottom-section color (e.g. meattheslop's black wood footer).
+  const vpTopEl = document.elementFromPoint(window.innerWidth / 2, Math.min(80, window.innerHeight * 0.12));
+  const vpTopRgb = vpTopEl ? walkUpForBackground(vpTopEl) : null;
+  const vpTopHex = vpTopRgb
+    ? ('#' + vpTopRgb.map(v => Math.round(v).toString(16).padStart(2,'0')).join('')).toUpperCase()
+    : null;
   const htmlBg = colorOrNull(getComputedStyle(document.documentElement).backgroundColor);
   const bodyBgRaw = colorOrNull(bodyStyle.backgroundColor);
-  const pageBg = htmlBg || bodyBgRaw || null;
+  const pageBg = vpTopHex || htmlBg || bodyBgRaw || null;
 
   // ── Deep extraction layers ───────────────────────────────────
   const cssVars             = scrapeCSSVariables();
@@ -1561,7 +1566,22 @@ function isColorDark(rgb) {
 // structural elements, walk up through transparent ancestors to find the real
 // rendered surface, and tally area-weighted votes for light vs dark.
 function detectPageIsDark() {
-  // Trust html/body background first — it's the authoritative page canvas.
+  // Step 0: What is the user ACTUALLY SEEING at the top of the page?
+  // elementFromPoint(center, 80px) returns the rendered element there.
+  // This beats html/body which can be set to a bottom-section/footer color
+  // (e.g. meattheslop has a black html bg for its dark wooden footer, but
+  //  the visible hero is cream).
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const topEl = document.elementFromPoint(vw / 2, Math.min(80, vh * 0.12));
+  if (topEl) {
+    const rgb = walkUpForBackground(topEl);
+    if (rgb) {
+      const luma = (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]) / 255;
+      return luma <= 0.5;
+    }
+  }
+
+  // Step 1: Trust html/body background — authoritative for most sites.
   const htmlBgDark = isOpaqueBgDark(getComputedStyle(document.documentElement).backgroundColor);
   if (htmlBgDark !== null) return htmlBgDark;
   const bodyBgDark = isOpaqueBgDark(getComputedStyle(document.body).backgroundColor);
