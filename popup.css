@@ -762,8 +762,8 @@ body::-webkit-scrollbar-corner {
 .send-row, .send-grid {
   margin: 0 18px;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
 }
 
 .send-btn {
