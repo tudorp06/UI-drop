@@ -8,6 +8,7 @@ const schemaSummary  = null; // removed in redesign
 const btnClaude      = document.getElementById('btnClaude');
 const btnCursor      = document.getElementById('btnCursor');
 const btnChatGPT     = document.getElementById('btnChatGPT');
+const btnGemini      = document.getElementById('btnGemini');
 const btnLovable     = document.getElementById('btnLovable');
 const btnManus       = document.getElementById('btnManus');
 const btnCopy        = document.getElementById('btnCopy');
@@ -911,6 +912,17 @@ btnChatGPT.addEventListener('click', async () => {
 btnCursor.addEventListener('click', async () => {
     if (!finalPrompt) return showNoSnapWarning();
     await copyTextAndImage(btnCursor, 'Copied!');
+});
+
+btnGemini.addEventListener('click', async () => {
+    if (!briefPrompt && !skillMarkdown) return showNoSnapWarning();
+    const screenshot = await getCurrentScreenshot();
+    const payload = buildSendPayload();
+    chrome.runtime.sendMessage({
+        action: 'openWithPrompt', target: 'gemini',
+        url: 'https://gemini.google.com/app',
+        prompt: payload.prompt, screenshot, skillFile: payload.skillFile
+    });
 });
 
 btnLovable.addEventListener('click', async () => {

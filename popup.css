@@ -828,6 +828,17 @@ body::-webkit-scrollbar-corner {
   border-color: rgba(16, 163, 127, 0.35) !important;
 }
 
+.btn-gemini:hover {
+  border-color: rgba(66,133,244,0.4);
+  background: rgba(66,133,244,0.08);
+  color: #93bbfd;
+  box-shadow: 0 4px 14px rgba(66,133,244,0.2);
+}
+.btn-icon-gemini {
+  background: #1a1a2e !important;
+  border-color: rgba(66,133,244,0.25) !important;
+}
+
 .btn-lovable:hover {
   border-color: rgba(255, 75, 110, 0.4);
   background: rgba(255, 75, 110, 0.08);

@@ -31,6 +31,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 const TARGET_PATTERNS = {
   claude:   '*://claude.ai/*',
   chatgpt:  '*://chatgpt.com/*',
+  gemini:   '*://gemini.google.com/*',
   lovable:  '*://lovable.dev/*',
   manus:    '*://manus.im/*',
 };
@@ -93,6 +94,11 @@ async function injectPromptIntoEditor(text, imageDataUrl, target, skillFile) {
   const selectors = target === 'claude'
     ? ['div.ProseMirror[contenteditable="true"]',
        'div[contenteditable="true"][role="textbox"]']
+    : target === 'gemini'
+    ? ['div.ql-editor[contenteditable="true"]',
+       'rich-textarea div[contenteditable="true"]',
+       'div[contenteditable="true"][aria-label]',
+       'div[contenteditable="true"]']
     : (target === 'lovable' || target === 'manus')
     ? ['textarea[placeholder]', 'textarea', 'div[contenteditable="true"]']
     : ['#prompt-textarea[contenteditable="true"]',
