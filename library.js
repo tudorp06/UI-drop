@@ -380,8 +380,8 @@ function openDetail(id) {
                Claude
              </button>
              <button class="detail-send-btn dsb-gemini" id="detailBtnGemini">
-               <div class="dsb-icon" style="background:#1a1a2e;border-color:rgba(66,133,244,0.25);">
-                 <svg viewBox="0 0 28 28" width="20" height="20"><path d="M14 28C14 26.0633 13.6267 24.2433 12.88 22.54C12.1567 20.8367 11.165 19.355 9.905 18.095C8.645 16.835 7.1633 15.8433 5.46 15.12C3.7567 14.3733 1.9367 14 0 14C1.9367 14 3.7567 13.6383 5.46 12.915C7.1633 12.1683 8.645 11.165 9.905 9.905C11.165 8.645 12.1567 7.1633 12.88 5.46C13.6267 3.7567 14 1.9367 14 0C14 1.9367 14.3617 3.7567 15.085 5.46C15.8317 7.1633 16.835 8.645 18.095 9.905C19.355 11.165 20.8367 12.1683 22.54 12.915C24.2433 13.6383 26.0633 14 28 14C26.0633 14 24.2433 14.3733 22.54 15.12C20.8367 15.8433 19.355 16.835 18.095 18.095C16.835 19.355 15.8317 20.8367 15.085 22.54C14.3617 24.2433 14 26.0633 14 28Z" fill="url(#gg)"/><defs><linearGradient id="gg" x1="0" y1="28" x2="28" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#4285F4"/><stop offset="50%" stop-color="#8B5CF6"/><stop offset="100%" stop-color="#34A853"/></linearGradient></defs></svg>
+               <div class="dsb-icon" style="background:#fff;border-color:rgba(66,133,244,0.2);overflow:hidden;padding:2px;">
+                 <img src="icons/gemini-logo.png" alt="Gemini" style="width:28px;height:28px;object-fit:contain;display:block;"/>
                </div>
                Gemini
              </button>
