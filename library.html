@@ -316,6 +316,14 @@ body.compare-mode .snap-check { display:flex; }
   background:linear-gradient(90deg,#3b82f6,#60a5fa);
   width:0; transition:width .4s ease;
 }
+.trial-bar-info {
+  flex-shrink:0; display:inline-flex; align-items:center; justify-content:center;
+  width:16px; height:16px; border-radius:50%;
+  background:rgba(147,197,253,0.10); color:#93c5fd;
+  font-size:10px; font-weight:700; cursor:help;
+  border:1px solid rgba(147,197,253,0.20);
+}
+.trial-bar-info:hover { background:rgba(147,197,253,0.18); color:#bfdbfe; }
 .trial-bar-cta {
   margin-left:auto; padding:5px 13px; border-radius:7px;
   background:#3b82f6; color:#fff; border:none; cursor:pointer;
@@ -325,89 +333,73 @@ body.compare-mode .snap-check { display:flex; }
 .trial-bar-cta:hover { background:#2563eb; }
 body.is-pro .trial-bar { display:none !important; }
 
-/* "N left" / "Pro" badge on gated buttons */
-.trial-badge {
-  display:inline-flex; align-items:center; justify-content:center;
-  margin-left:6px; padding:1px 7px; border-radius:6px;
-  font-family:var(--font-b); font-size:9.5px; font-weight:700; letter-spacing:.2px;
-  background:rgba(59,130,246,0.14); color:#93c5fd;
-  border:1px solid rgba(59,130,246,0.25);
-  vertical-align:middle;
-}
-.trial-badge.locked {
-  background:rgba(239,68,68,0.10); color:#fca5a5; border-color:rgba(239,68,68,0.25);
-}
-.trial-badge.pro {
-  background:linear-gradient(135deg,rgba(245,158,11,0.18),rgba(245,158,11,0.10));
-  color:#fbbf24; border-color:rgba(245,158,11,0.35);
-}
-body.is-pro .trial-badge { display:none; }
-
-/* Paywall modal */
+/* Paywall — tight, single-pane, no clutter */
 .paywall {
   position:fixed; inset:0; z-index:900;
-  background:rgba(8,12,22,0.78); backdrop-filter:blur(14px);
+  background:rgba(8,12,22,0.72); backdrop-filter:blur(16px);
   display:flex; align-items:center; justify-content:center; padding:24px;
 }
 .paywall.hidden { display:none; }
 .paywall-card {
   background:var(--bg-1); border:1px solid var(--line-2);
-  border-radius:18px; padding:32px 30px 26px;
-  max-width:440px; width:100%; position:relative;
-  box-shadow:0 32px 80px rgba(0,0,0,0.55), 0 0 0 1px rgba(59,130,246,0.08);
+  border-radius:14px; padding:22px 22px 18px;
+  max-width:340px; width:100%; position:relative;
+  box-shadow:0 24px 64px rgba(0,0,0,0.55);
 }
 .paywall-close {
-  position:absolute; top:14px; right:16px;
+  position:absolute; top:10px; right:12px;
   background:none; border:none; cursor:pointer;
-  color:var(--muted); font-size:22px; line-height:1; padding:4px;
+  color:var(--faint); font-size:18px; line-height:1; padding:4px;
 }
 .paywall-close:hover { color:var(--text); }
-.paywall-eyebrow {
-  display:inline-flex; align-items:center; gap:6px;
-  font-size:10.5px; font-weight:700; letter-spacing:.8px; text-transform:uppercase;
-  color:#fbbf24; margin-bottom:14px;
-}
+
 .paywall-headline {
-  font-family:var(--font-h); font-size:22px; font-weight:800; line-height:1.25;
-  letter-spacing:-.4px; color:var(--text); margin-bottom:8px;
+  font-family:var(--font-h); font-size:17px; font-weight:800; line-height:1.3;
+  letter-spacing:-.3px; color:var(--text); margin-bottom:6px; padding-right:18px;
 }
-.paywall-headline em { font-style:normal; color:#60a5fa; }
-.paywall-sub { font-size:13px; color:var(--muted); margin-bottom:20px; line-height:1.5; }
-.paywall-perks { list-style:none; padding:0; margin:0 0 22px; display:flex; flex-direction:column; gap:8px; }
+.paywall-sub { font-size:12.5px; color:var(--muted); margin-bottom:16px; line-height:1.5; }
+
+/* Two-column compact perks grid */
+.paywall-perks {
+  list-style:none; padding:0; margin:0 0 18px;
+  display:grid; grid-template-columns:1fr 1fr; gap:6px 12px;
+}
 .paywall-perks li {
-  font-size:13px; color:var(--text-dim);
-  display:flex; align-items:center; gap:9px;
+  font-size:11.5px; color:var(--text-dim);
+  display:flex; align-items:center; gap:6px; line-height:1.3;
 }
 .paywall-perks li::before {
-  content:""; flex-shrink:0; width:14px; height:14px; border-radius:50%;
-  background:rgba(59,130,246,0.18); border:1px solid rgba(59,130,246,0.4);
-  background-image:url("data:image/svg+xml,%3Csvg width='8' height='8' viewBox='0 0 24 24' fill='none' stroke='%2360a5fa' stroke-width='3.5' stroke-linecap='round' xmlns='http://www.w3.org/2000/svg'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E");
-  background-repeat:no-repeat; background-position:center; background-size:8px;
+  content:""; flex-shrink:0; width:10px; height:10px; border-radius:50%;
+  background:rgba(59,130,246,0.18);
+  background-image:url("data:image/svg+xml,%3Csvg width='6' height='6' viewBox='0 0 24 24' fill='none' stroke='%2360a5fa' stroke-width='4' stroke-linecap='round' xmlns='http://www.w3.org/2000/svg'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:center; background-size:6px;
 }
-.paywall-price {
-  display:flex; align-items:baseline; justify-content:center; gap:8px; margin-bottom:18px;
-}
-.paywall-amount {
-  font-family:var(--font-h); font-size:38px; font-weight:800; letter-spacing:-1.5px; color:var(--text);
-}
-.paywall-once { font-size:12px; color:var(--muted); }
+
+/* CTA row: price + button inline */
 .paywall-buy {
-  width:100%; padding:13px; border-radius:11px; border:none; cursor:pointer;
+  width:100%; padding:11px 16px; border-radius:10px; border:none; cursor:pointer;
   background:linear-gradient(135deg,#60a5fa 0%,#3b82f6 55%,#1d4ed8 100%);
-  color:#fff; font-family:var(--font-b); font-size:14px; font-weight:700; letter-spacing:-.2px;
-  box-shadow:0 8px 24px rgba(37,99,235,0.42), inset 0 1px 0 rgba(255,255,255,0.18);
+  color:#fff; font-family:var(--font-b); font-size:13.5px; font-weight:700; letter-spacing:-.2px;
+  box-shadow:0 6px 18px rgba(37,99,235,0.4), inset 0 1px 0 rgba(255,255,255,0.18);
   transition:transform .1s, box-shadow .2s;
-  margin-bottom:10px;
+  margin-bottom:8px;
+  display:flex; align-items:center; justify-content:center; gap:8px;
 }
-.paywall-buy:hover { box-shadow:0 12px 32px rgba(37,99,235,0.55); }
+.paywall-buy:hover { box-shadow:0 10px 26px rgba(37,99,235,0.55); }
 .paywall-buy:active { transform:scale(.98); }
-.paywall-license-btn {
-  width:100%; padding:10px; border-radius:10px; cursor:pointer;
-  background:transparent; border:1px solid var(--line-2);
-  color:var(--text-dim); font-family:var(--font-b); font-size:12.5px; font-weight:600;
-  transition:color .15s, border-color .15s;
+.paywall-buy-price {
+  font-weight:800; font-size:14px;
+  padding:2px 7px; border-radius:5px;
+  background:rgba(255,255,255,0.15);
 }
-.paywall-license-btn:hover { color:var(--text); border-color:rgba(255,255,255,0.18); }
+
+.paywall-license-btn {
+  width:100%; padding:0; cursor:pointer;
+  background:transparent; border:none;
+  color:var(--faint); font-family:var(--font-b); font-size:11.5px; font-weight:500;
+  transition:color .15s; text-align:center;
+}
+.paywall-license-btn:hover { color:var(--text-dim); text-decoration:underline; }
 
 /* license input view */
 .paywall-license { }
@@ -1110,8 +1102,9 @@ body.compare-mode .snap-pin { display:none !important; }
 <div class="trial-bar hidden" id="trialBar">
   <svg class="trial-bar-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15 8.5 22 9.3 17 14.1 18.2 21 12 17.8 5.8 21 7 14.1 2 9.3 9 8.5 12 2"/></svg>
   <span class="trial-bar-text"></span>
+  <span class="trial-bar-info" id="trialBarInfo" title="Free trial: 3 uses for each of the 6 Pro features (Compare, Figma/CSS/Canva export, Insights, Collections). 18 free actions in total before unlock.">i</span>
   <div class="trial-bar-track"><div class="trial-bar-fill"></div></div>
-  <button class="trial-bar-cta" id="trialBarUpgrade">Unlock for $2 →</button>
+  <button class="trial-bar-cta" id="trialBarUpgrade">Unlock for $3 →</button>
 </div>
 
 <!-- Paywall modal -->
@@ -1120,21 +1113,19 @@ body.compare-mode .snap-pin { display:none !important; }
     <button class="paywall-close" id="paywallCloseBtn" title="Close">×</button>
 
     <div class="paywall-default">
-      <div class="paywall-eyebrow">⚡ Trial used up</div>
-      <h2 class="paywall-headline">You've used your <em>5 free actions</em>.</h2>
-      <p class="paywall-sub">Unlock the full Snap Library — Compare, Export, Insights and everything else — for one $2 payment, forever.</p>
+      <h2 class="paywall-headline">Unlock the Snap Library</h2>
+      <p class="paywall-sub">One-time payment. No subscription. Yours forever.</p>
       <ul class="paywall-perks">
-        <li>Unlimited side-by-side <strong>Compare</strong></li>
-        <li>Export to <strong>Figma Tokens, CSS variables, Canva</strong></li>
-        <li>Library <strong>Insights</strong> — colors, fonts, dark/light split</li>
-        <li>Unlimited <strong>Collections</strong></li>
-        <li>Sending snaps to any AI stays <strong>free forever</strong></li>
+        <li>Compare</li>
+        <li>Figma export</li>
+        <li>CSS export</li>
+        <li>Canva export</li>
+        <li>Insights</li>
+        <li>Collections</li>
       </ul>
-      <div class="paywall-price">
-        <span class="paywall-amount">$2</span>
-        <span class="paywall-once">one-time · forever</span>
-      </div>
-      <button class="paywall-buy" id="paywallBuyBtn">Unlock Pro for $2 →</button>
+      <button class="paywall-buy" id="paywallBuyBtn">
+        Unlock Pro <span class="paywall-buy-price">$3</span>
+      </button>
       <button class="paywall-license-btn" id="paywallLicenseBtn">Already paid? Enter license key</button>
     </div>
 

@@ -2,10 +2,10 @@
 // Each feature gets 5 free uses. After that → paywall.
 // Pro license unlocks everything forever.
 
-const TRIAL_LIMIT = 5;
+const TRIAL_LIMIT = 3;  // per feature · 6 features × 3 = 18 free Pro actions total
 
 // Stable IDs for every gated feature. Used as storage keys + UI badge keys.
-// 6 gated features × 5 free uses each = 30 total trial actions before paywall.
+// 6 gated features × 3 free uses each = 18 total trial actions before paywall.
 // Skill mode + Send-to-AI intentionally NOT gated — those stay free forever.
 const GATED = {
   compare:     { label: 'Compare',      icon: '⇄' },
@@ -103,39 +103,9 @@ async function clearLicense() {
   refreshTrialBar();
 }
 
-// ── UI: trial counter pill on a button ──────────────────────────────────────
-// Call once per gated button after render. Adds a small "N left" badge.
-function attachTrialBadge(btnEl, feature) {
-  if (!btnEl || btnEl.dataset.gated === '1') return;
-  btnEl.dataset.gated = '1';
-  btnEl.dataset.feature = feature;
-  const badge = document.createElement('span');
-  badge.className = 'trial-badge';
-  btnEl.appendChild(badge);
-  updateBadge(btnEl, feature);
-}
-
-async function updateBadge(btnEl, feature) {
-  const badge = btnEl.querySelector('.trial-badge');
-  if (!badge) return;
-  const c = await canUse(feature);
-  if (c.pro) {
-    badge.textContent = 'Pro';
-    badge.className = 'trial-badge pro';
-  } else if (c.remaining === 0) {
-    badge.textContent = '🔒';
-    badge.className = 'trial-badge locked';
-  } else {
-    badge.textContent = `${c.remaining} left`;
-    badge.className = 'trial-badge';
-  }
-}
-
-function refreshAllBadges() {
-  document.querySelectorAll('[data-gated="1"]').forEach(el => {
-    updateBadge(el, el.dataset.feature);
-  });
-}
+// Per-button badges removed — too noisy. Counter lives in the trial bar at the top only.
+function attachTrialBadge() { /* no-op kept for callsite back-compat */ }
+function refreshAllBadges()   { /* no-op */ }
 
 // ── UI: trial progress bar at the top of the library ────────────────────────
 async function refreshTrialBar() {
@@ -160,9 +130,10 @@ async function refreshTrialBar() {
 function showPaywall(feature) {
   const m = document.getElementById('paywall');
   if (!m) return;
+  // Headline stays static — clean and uncluttered. Sub-line names the feature.
   const featLabel = GATED[feature]?.label || 'this feature';
-  m.querySelector('.paywall-headline').innerHTML =
-    `You've used your <em>5 free ${featLabel}</em> actions.`;
+  const sub = m.querySelector('.paywall-sub');
+  if (sub) sub.textContent = `${featLabel} is locked. Unlock the whole Snap Library for $3, one-time.`;
   m.classList.remove('hidden');
 }
 

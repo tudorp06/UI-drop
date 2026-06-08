@@ -1,4 +1,4 @@
-# Polar.sh Setup for UIDrop Pro ($2 one-time)
+# Polar.sh Setup for UIDrop Pro ($3 one-time)
 
 You need to do this once on polar.sh before the in-extension paywall will work.
 Takes ~5 minutes.
@@ -18,7 +18,7 @@ Takes ~5 minutes.
    - **Name:** `UIDrop Pro — Snap Library`
    - **Description:** `Unlimited Compare, Export (Figma/CSS/Canva), Insights, Skill mode, and Collections in the UIDrop Snap Library. One-time payment, yours forever.`
    - **Pricing type:** `One-time purchase`
-   - **Price:** `$2.00 USD`
+   - **Price:** `$3.00 USD`
    - **License keys:** **TOGGLE ON** ✓  (critical — this is what the extension validates)
      - Activation limit: leave blank (unlimited devices)
      - Expires after: leave blank (never expires)
@@ -47,8 +47,8 @@ If you want a server-side log of every purchase:
 ## How the in-extension flow works
 
 1. User browses the Snap Library freely
-2. Each gated feature (Compare, Export, Insights, Skill, Collections) shows a "3 left" counter
-3. After 5 uses → soft paywall modal appears with **Unlock for $2** button
+2. The library shows a thin trial bar at top: "X of 18 free Pro actions used"
+3. After 3 uses of any single feature (Compare, Figma/CSS/Canva export, Insights, Collections) → soft paywall modal with **Unlock for $3** button
 4. Clicking it opens your Polar checkout URL in a new tab
 5. Polar sends them a license key after payment (shown on success page + emailed)
 6. User comes back, clicks **"Already paid? Enter license key"** in the modal
