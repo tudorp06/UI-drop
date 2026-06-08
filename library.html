@@ -333,6 +333,63 @@ body.compare-mode .snap-check { display:flex; }
 .trial-bar-cta:hover { background:#2563eb; }
 body.is-pro .trial-bar { display:none !important; }
 
+/* ── TONAL SCALE (free, derived from primary) ── */
+.cv-section-hint {
+  font-weight:500; text-transform:none; letter-spacing:0;
+  color:var(--faint); font-size:9.5px; margin-left:6px;
+}
+.tonal-scale {
+  display:grid; grid-template-columns:repeat(11, 1fr); gap:4px;
+  margin-top:8px;
+}
+.tonal-step {
+  display:flex; flex-direction:column; align-items:center; gap:4px;
+  cursor:pointer; position:relative;
+  transition:transform .12s;
+}
+.tonal-step:hover { transform:translateY(-2px); }
+.tonal-swatch {
+  width:100%; aspect-ratio:1/1.4; border-radius:5px;
+  border:1px solid rgba(255,255,255,0.06);
+}
+.tonal-name {
+  font-family:var(--font-m); font-size:8.5px; color:var(--faint);
+  letter-spacing:.2px;
+}
+.tonal-step.copied .tonal-swatch {
+  box-shadow:0 0 0 2px #6dd4a7, 0 0 0 4px rgba(109,212,167,0.25);
+}
+.tonal-step.copied .tonal-name { color:#6dd4a7; }
+
+/* ── WCAG CONTRAST CHECKER (free) ── */
+.wcag-grid { display:flex; flex-direction:column; gap:6px; margin-top:8px; }
+.wcag-row {
+  display:flex; align-items:center; gap:12px;
+  padding:8px 10px; border-radius:8px;
+  background:rgba(255,255,255,0.02); border:1px solid var(--line);
+}
+.wcag-preview {
+  flex-shrink:0; width:36px; height:36px; border-radius:7px;
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--font-h); font-size:16px; font-weight:800;
+  border:1px solid rgba(255,255,255,0.08);
+}
+.wcag-meta { flex:1; min-width:0; }
+.wcag-label {
+  font-size:11.5px; color:var(--text-dim); font-weight:500;
+  text-transform:capitalize;
+}
+.wcag-ratio {
+  font-family:var(--font-m); font-size:13px; font-weight:600;
+  color:var(--text); margin-top:1px;
+}
+.wcag-badge {
+  flex-shrink:0; padding:3px 9px; border-radius:6px;
+  font-family:var(--font-b); font-size:10.5px; font-weight:700; letter-spacing:.3px;
+}
+.wcag-badge.ok   { background:rgba(109,212,167,0.12); color:#6dd4a7; border:1px solid rgba(109,212,167,0.3); }
+.wcag-badge.fail { background:rgba(239,68,68,0.10);   color:#fca5a5; border:1px solid rgba(239,68,68,0.3); }
+
 /* Paywall — tight, single-pane, no clutter */
 .paywall {
   position:fixed; inset:0; z-index:900;
@@ -691,7 +748,7 @@ body.is-pro .trial-bar { display:none !important; }
   margin-bottom:10px;
 }
 .detail-export-row {
-  display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:16px;
+  display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-bottom:16px;
 }
 .detail-export-btn {
   padding:10px 8px; border-radius:9px;
@@ -1080,6 +1137,10 @@ body.compare-mode .snap-pin { display:none !important; }
       Compare
     </button>
 
+    <button class="topbar-icon-btn" id="randomSnapBtn" title="Surprise me — open a random snap">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8" r="1.2" fill="currentColor"/><circle cx="16" cy="8" r="1.2" fill="currentColor"/><circle cx="8" cy="16" r="1.2" fill="currentColor"/><circle cx="16" cy="16" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/></svg>
+    </button>
+
     <button class="topbar-icon-btn" id="starFilterBtn" title="Favourites">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
@@ -1102,7 +1163,7 @@ body.compare-mode .snap-pin { display:none !important; }
 <div class="trial-bar hidden" id="trialBar">
   <svg class="trial-bar-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15 8.5 22 9.3 17 14.1 18.2 21 12 17.8 5.8 21 7 14.1 2 9.3 9 8.5 12 2"/></svg>
   <span class="trial-bar-text"></span>
-  <span class="trial-bar-info" id="trialBarInfo" title="Free trial: 3 uses for each of the 6 Pro features (Compare, Figma/CSS/Canva export, Insights, Collections). 18 free actions in total before unlock.">i</span>
+  <span class="trial-bar-info" id="trialBarInfo" title="Free trial: 3 uses for each of the 8 Pro features (Compare, Insights, Collections, and exports for Figma / CSS / Tailwind / shadcn / Canva). 24 free actions total before unlock.">i</span>
   <div class="trial-bar-track"><div class="trial-bar-fill"></div></div>
   <button class="trial-bar-cta" id="trialBarUpgrade">Unlock for $3 →</button>
 </div>
@@ -1117,10 +1178,12 @@ body.compare-mode .snap-pin { display:none !important; }
       <p class="paywall-sub">One-time payment. No subscription. Yours forever.</p>
       <ul class="paywall-perks">
         <li>Compare</li>
-        <li>Figma export</li>
-        <li>CSS export</li>
-        <li>Canva export</li>
         <li>Insights</li>
+        <li>Figma export</li>
+        <li>Tailwind config</li>
+        <li>CSS export</li>
+        <li>shadcn/ui theme</li>
+        <li>Canva export</li>
         <li>Collections</li>
       </ul>
       <button class="paywall-buy" id="paywallBuyBtn">

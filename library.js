@@ -52,6 +52,7 @@ async function init() {
     document.getElementById('viewToggleBtn')    .addEventListener('click',  toggleViewMode);
     // Gate: Insights modal
     document.getElementById('insightsBtn')      .addEventListener('click',  () => window.UIDropGate.gate('insights', showInsightsModal));
+    document.getElementById('randomSnapBtn')   ?.addEventListener('click',  openRandomSnap);
 
     // Attach trial badges to the gated topbar buttons
     window.UIDropGate.attachTrialBadge(document.getElementById('compareModeBtn'), 'compare');
@@ -387,6 +388,14 @@ function openDetail(id) {
                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5-4 4-2-2-5 5"/></svg>
                Poster PNG
              </button>
+             <button class="detail-export-btn" id="detailExportTailwind">
+               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s2-6 8-6 7 4 10 4 4-2 4-2-2 6-8 6-7-4-10-4-4 2-4 2z"/></svg>
+               Tailwind
+             </button>
+             <button class="detail-export-btn" id="detailExportShadcn">
+               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4l-8 16"/><path d="M3 10h6"/><path d="M15 14h6"/></svg>
+               shadcn/ui
+             </button>
            </div>
            <div class="detail-send-header">
              <span class="detail-send-label">Send to</span>
@@ -489,10 +498,20 @@ function openDetail(id) {
         });
     });
 
-    // Attach trial badges to the 3 export buttons
-    window.UIDropGate.attachTrialBadge(document.getElementById('detailExportFigma'), 'exportFigma');
-    window.UIDropGate.attachTrialBadge(document.getElementById('detailExportCSS'),   'exportCSS');
-    window.UIDropGate.attachTrialBadge(document.getElementById('detailExportCanva'), 'exportCanva');
+    document.getElementById('detailExportTailwind').addEventListener('click', () => {
+        window.UIDropGate.gate('exportTailwind', () => {
+            downloadFile(`${safeName}-tailwind.config.js`, buildTailwindConfig(snap), 'application/javascript');
+            navigator.clipboard.writeText(buildTailwindConfig(snap)).catch(()=>{});
+            flashExport('detailExportTailwind', 'Downloaded');
+        });
+    });
+    document.getElementById('detailExportShadcn').addEventListener('click', () => {
+        window.UIDropGate.gate('exportShadcn', () => {
+            downloadFile(`${safeName}-shadcn-theme.css`, buildShadcnTheme(snap), 'text/css');
+            navigator.clipboard.writeText(buildShadcnTheme(snap)).catch(()=>{});
+            flashExport('detailExportShadcn', 'Downloaded');
+        });
+    });
     document.getElementById('detailExportPoster').addEventListener('click', () => {
         exportPalettePoster(snap);
     });
@@ -650,6 +669,17 @@ function openDetail(id) {
         });
     });
 
+    // Click-to-copy on tonal scale steps (free feature)
+    document.getElementById('detailPanel').querySelectorAll('.tonal-step').forEach(step => {
+        step.addEventListener('click', () => {
+            const hex = step.dataset.hex;
+            navigator.clipboard.writeText(hex).then(() => {
+                step.classList.add('copied');
+                setTimeout(() => step.classList.remove('copied'), 800);
+            });
+        });
+    });
+
     document.getElementById('gridView').classList.add('hidden');
     document.getElementById('detailView').classList.remove('hidden');
     window.scrollTo(0, 0);
@@ -658,6 +688,13 @@ function openDetail(id) {
 function closeDetail() {
     document.getElementById('detailView').classList.add('hidden');
     document.getElementById('gridView').classList.remove('hidden');
+}
+
+// "Surprise me" — jump to a random snap (free)
+function openRandomSnap() {
+    if (!allSnaps?.length) return;
+    const random = allSnaps[Math.floor(Math.random() * allSnaps.length)];
+    openDetail(random.id);
 }
 
 // ── Open compare ─────────────────────────────────────────────
@@ -772,6 +809,43 @@ function panelHTML(snap, other) {
           ${tokenRow('textColor',       'text',     s.textColor,       'color')}
           ${tokenRow('mutedText',       'muted',    s.mutedText,       'color')}
         </div>
+
+        <!-- Tonal scale (free, derived from primary) -->
+        ${s.primaryColor ? `
+        <div>
+          <div class="cv-section-label">Tonal scale <span class="cv-section-hint">— generated from primary</span></div>
+          <div class="tonal-scale">
+            ${generateTonalScale(s.primaryColor).map(t => `
+              <div class="tonal-step" data-hex="${t.hex}" title="${t.hex} · click to copy">
+                <div class="tonal-swatch" style="background:${t.hex}"></div>
+                <span class="tonal-name">${t.name}</span>
+              </div>`).join('')}
+          </div>
+        </div>` : ''}
+
+        <!-- WCAG contrast checker (free) -->
+        ${s.textColor && s.surfaceColor ? `
+        <div>
+          <div class="cv-section-label">Contrast <span class="cv-section-hint">— WCAG 2.x</span></div>
+          <div class="wcag-grid">
+            ${[
+              { fg: s.textColor,    bg: s.surfaceColor, fgLabel: 'text',    bgLabel: 'surface' },
+              s.primaryColor ? { fg: s.primaryColor, bg: s.surfaceColor, fgLabel: 'primary', bgLabel: 'surface' } : null,
+              s.mutedText    ? { fg: s.mutedText,    bg: s.surfaceColor, fgLabel: 'muted',   bgLabel: 'surface' } : null,
+            ].filter(Boolean).map(p => {
+              const r = contrastRatio(p.fg, p.bg);
+              const g = wcagGrade(r);
+              return `<div class="wcag-row">
+                <div class="wcag-preview" style="background:${p.bg};color:${p.fg};">Aa</div>
+                <div class="wcag-meta">
+                  <div class="wcag-label">${p.fgLabel} on ${p.bgLabel}</div>
+                  <div class="wcag-ratio">${r}:1</div>
+                </div>
+                <span class="wcag-badge ${g.ok ? 'ok' : 'fail'}">${g.grade}</span>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>` : ''}
 
         <!-- Typography -->
         <div>
@@ -947,6 +1021,194 @@ function buildCSSVars(snap) {
 
     lines.push('}');
     return lines.join('\n');
+}
+
+// ── Color science helpers ────────────────────────────────────
+// Used by tonal scale, contrast checker, Tailwind/shadcn exports
+function hexToRgb(hex) {
+    if (!hex) return null;
+    const m = hex.replace('#','').match(/^([0-9a-f]{6}|[0-9a-f]{3})$/i);
+    if (!m) return null;
+    let h = m[1];
+    if (h.length === 3) h = h.split('').map(c => c+c).join('');
+    return { r: parseInt(h.slice(0,2),16), g: parseInt(h.slice(2,4),16), b: parseInt(h.slice(4,6),16) };
+}
+
+function rgbToHex(r,g,b) {
+    const c = n => Math.max(0,Math.min(255,Math.round(n))).toString(16).padStart(2,'0');
+    return '#' + c(r) + c(g) + c(b);
+}
+
+function rgbToHsl(r,g,b) {
+    r/=255; g/=255; b/=255;
+    const max = Math.max(r,g,b), min = Math.min(r,g,b);
+    let h, s, l = (max+min)/2;
+    if (max === min) { h = s = 0; }
+    else {
+        const d = max-min;
+        s = l > 0.5 ? d/(2-max-min) : d/(max+min);
+        switch (max) {
+            case r: h = ((g-b)/d + (g<b?6:0)); break;
+            case g: h = ((b-r)/d + 2); break;
+            case b: h = ((r-g)/d + 4); break;
+        }
+        h /= 6;
+    }
+    return { h: h*360, s: s*100, l: l*100 };
+}
+
+function hslToRgb(h,s,l) {
+    h/=360; s/=100; l/=100;
+    let r,g,b;
+    if (s === 0) { r=g=b=l; }
+    else {
+        const hue2rgb = (p,q,t) => { if(t<0)t+=1; if(t>1)t-=1; if(t<1/6)return p+(q-p)*6*t; if(t<1/2)return q; if(t<2/3)return p+(q-p)*(2/3-t)*6; return p; };
+        const q = l < 0.5 ? l*(1+s) : l+s-l*s;
+        const p = 2*l - q;
+        r = hue2rgb(p,q,h+1/3); g = hue2rgb(p,q,h); b = hue2rgb(p,q,h-1/3);
+    }
+    return { r: r*255, g: g*255, b: b*255 };
+}
+
+// Tailwind-style 11-step tonal scale (50, 100..900, 950) from a single hex
+function generateTonalScale(hex) {
+    const rgb = hexToRgb(hex);
+    if (!rgb) return [];
+    const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+    // Lightness targets matched to Tailwind's perceptual scale
+    const steps = [
+        { name: '50',  l: 97 }, { name: '100', l: 94 }, { name: '200', l: 86 },
+        { name: '300', l: 77 }, { name: '400', l: 66 }, { name: '500', l: hsl.l },
+        { name: '600', l: Math.max(38, hsl.l - 8) },
+        { name: '700', l: Math.max(30, hsl.l - 18) },
+        { name: '800', l: Math.max(22, hsl.l - 26) },
+        { name: '900', l: Math.max(15, hsl.l - 34) },
+        { name: '950', l: Math.max(8,  hsl.l - 42) },
+    ];
+    return steps.map(s => {
+        const { r, g, b } = hslToRgb(hsl.h, hsl.s, s.l);
+        return { name: s.name, hex: rgbToHex(r, g, b) };
+    });
+}
+
+// WCAG 2.x contrast ratio (1:1 → 21:1)
+function contrastRatio(hex1, hex2) {
+    const lum = hex => {
+        const c = hexToRgb(hex); if (!c) return 0;
+        const f = v => { v/=255; return v <= 0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055, 2.4); };
+        return 0.2126*f(c.r) + 0.7152*f(c.g) + 0.0722*f(c.b);
+    };
+    const a = lum(hex1), b = lum(hex2);
+    const ratio = (Math.max(a,b) + 0.05) / (Math.min(a,b) + 0.05);
+    return Math.round(ratio * 10) / 10;
+}
+
+function wcagGrade(ratio) {
+    if (ratio >= 7)   return { grade: 'AAA',  ok: true,  desc: 'Excellent' };
+    if (ratio >= 4.5) return { grade: 'AA',   ok: true,  desc: 'Good' };
+    if (ratio >= 3)   return { grade: 'AA-L', ok: true,  desc: 'Large text only' };
+    return                   { grade: 'Fail', ok: false, desc: 'Insufficient' };
+}
+
+// ── Tailwind config export (Pro) ────────────────────────────
+function buildTailwindConfig(snap) {
+    const s = snap.schema || {};
+    const name = (snap.siteName || 'brand').replace(/[^a-z0-9]+/gi, '').toLowerCase() || 'brand';
+
+    const tonal = s.primaryColor ? generateTonalScale(s.primaryColor) : [];
+    const accentTonal = s.accentColor ? generateTonalScale(s.accentColor) : [];
+
+    const fmtScale = (scale) => scale.length
+        ? '{\n' + scale.map(t => `          '${t.name}': '${t.hex}',`).join('\n') + '\n        }'
+        : 'null';
+
+    const headingFamily = s.headingFont?.split(/\s+/).filter(p => !/^\d/.test(p)).join(' ').trim();
+    const bodyFamily    = s.bodyFont?.split(/[\s,]+/)[0];
+
+    let radii = [];
+    if (s.radius) {
+        radii = [...s.radius.matchAll(/(\d+(?:\.\d+)?)px\s+(\w+)/g)].map(([, v, n]) => ({ name: n, value: v + 'px' }));
+    }
+
+    return `// tailwind.config.js — extracted from ${snap.siteName || 'site'} via UIDrop
+// Drop into your tailwind config under \`theme.extend\`.
+module.exports = {
+  theme: {
+    extend: {
+      colors: {
+        ${name}: ${fmtScale(tonal)},${accentTonal.length ? `
+        ${name}Accent: ${fmtScale(accentTonal)},` : ''}
+        surface:  '${s.surfaceColor    || '#ffffff'}',
+        elevated: '${s.elevatedSurface || '#f9fafb'}',
+        ink:      '${s.textColor       || '#111827'}',
+        muted:    '${s.mutedText       || '#6b7280'}',
+        border:   '${s.borderColor     || '#e5e7eb'}',
+      },
+      fontFamily: {${headingFamily ? `
+        heading: ['${headingFamily}', 'sans-serif'],` : ''}${bodyFamily ? `
+        sans:    ['${bodyFamily}', 'sans-serif'],` : ''}
+      },${radii.length ? `
+      borderRadius: {
+${radii.map(r => `        ${r.name}: '${r.value}',`).join('\n')}
+      },` : ''}
+    },
+  },
+};
+`;
+}
+
+// ── shadcn/ui CSS theme export (Pro) ─────────────────────────
+// Outputs the CSS variables block in shadcn's exact convention (HSL channel values)
+function buildShadcnTheme(snap) {
+    const s = snap.schema || {};
+    const hexToHslChannels = (hex) => {
+        const rgb = hexToRgb(hex); if (!rgb) return null;
+        const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+        return `${Math.round(hsl.h)} ${Math.round(hsl.s)}% ${Math.round(hsl.l)}%`;
+    };
+    const isDark = s.isDark === true;
+
+    const pri      = hexToHslChannels(s.primaryColor) || '222 47% 11%';
+    const acc      = hexToHslChannels(s.accentColor)  || pri;
+    const bg       = hexToHslChannels(s.surfaceColor) || (isDark ? '222 47% 11%' : '0 0% 100%');
+    const fg       = hexToHslChannels(s.textColor)    || (isDark ? '210 40% 98%' : '222 47% 11%');
+    const muted    = hexToHslChannels(s.mutedText)    || (isDark ? '215 20% 65%' : '215 16% 47%');
+    const border   = hexToHslChannels(s.borderColor)  || (isDark ? '217 33% 17%' : '214 32% 91%');
+    const elevated = hexToHslChannels(s.elevatedSurface) || bg;
+    // Heuristic primary-foreground: white if primary is dark, near-black otherwise
+    const priRgb = hexToRgb(s.primaryColor);
+    const priLight = priRgb ? rgbToHsl(priRgb.r, priRgb.g, priRgb.b).l : 50;
+    const priFg = priLight > 60 ? '222 47% 11%' : '0 0% 100%';
+
+    // Radius — pull the first numeric radius value
+    const radiusMatch = s.radius?.match(/(\d+(?:\.\d+)?)px/);
+    const radius = radiusMatch ? `${radiusMatch[1]}px` : '0.5rem';
+
+    return `/* shadcn/ui theme — extracted from ${snap.siteName || 'site'} via UIDrop
+   Paste this into globals.css (replaces the default :root + .dark blocks) */
+:root {
+  --background: ${bg};
+  --foreground: ${fg};
+  --card: ${elevated};
+  --card-foreground: ${fg};
+  --popover: ${elevated};
+  --popover-foreground: ${fg};
+  --primary: ${pri};
+  --primary-foreground: ${priFg};
+  --secondary: ${acc};
+  --secondary-foreground: ${fg};
+  --muted: ${muted};
+  --muted-foreground: ${muted};
+  --accent: ${acc};
+  --accent-foreground: ${fg};
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 98%;
+  --border: ${border};
+  --input: ${border};
+  --ring: ${pri};
+  --radius: ${radius};
+}
+`;
 }
 
 function buildCanvaPalette(snap) {

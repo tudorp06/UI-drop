@@ -2,18 +2,20 @@
 // Each feature gets 5 free uses. After that → paywall.
 // Pro license unlocks everything forever.
 
-const TRIAL_LIMIT = 3;  // per feature · 6 features × 3 = 18 free Pro actions total
+const TRIAL_LIMIT = 3;  // per feature · 8 features × 3 = 24 free Pro actions total
 
 // Stable IDs for every gated feature. Used as storage keys + UI badge keys.
-// 6 gated features × 3 free uses each = 18 total trial actions before paywall.
-// Skill mode + Send-to-AI intentionally NOT gated — those stay free forever.
+// 8 gated features × 3 free uses each = 24 total trial actions before paywall.
+// Skill mode + Send-to-AI + Tonal scale + Contrast checker intentionally NOT gated.
 const GATED = {
-  compare:     { label: 'Compare',      icon: '⇄' },
-  exportFigma: { label: 'Figma Export', icon: '◆' },
-  exportCSS:   { label: 'CSS Export',   icon: '{ }' },
-  exportCanva: { label: 'Canva Export', icon: '◐' },
-  insights:    { label: 'Insights',     icon: '📊' },
-  collections: { label: 'Collections',  icon: '🗂' },
+  compare:        { label: 'Compare',         icon: '⇄' },
+  exportFigma:    { label: 'Figma Export',    icon: '◆' },
+  exportCSS:      { label: 'CSS Export',      icon: '{ }' },
+  exportCanva:    { label: 'Canva Export',    icon: '◐' },
+  exportTailwind: { label: 'Tailwind Export', icon: '⌽' },
+  exportShadcn:   { label: 'shadcn Theme',    icon: '◑' },
+  insights:       { label: 'Insights',        icon: '📊' },
+  collections:    { label: 'Collections',     icon: '🗂' },
 };
 
 // ── Polar.sh config (fill in after setup) ───────────────────────────────────
