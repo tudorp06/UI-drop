@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "UIDrop",
-  "version": "1.1.6",
-  "description": "Extract colors, fonts, spacing & components — buttons, cards, chips — from any site. Send to Claude, GPT, Cursor, Lovable or Manus.",
+  "name": "UIDrop — Design System Extractor for AI",
+  "version": "1.5.0",
+  "description": "Extract any site's colors, fonts, spacing & components in one click. Send to Claude, ChatGPT, Gemini, Cursor, Lovable or Manus.",
 
   "icons": {
     "16":  "icons/icon16.png",
@@ -34,7 +34,9 @@
     "https://gemini.google.com/*",
     "https://lovable.dev/*",
     "https://manus.im/*",
-    "https://extensionpay.com/*"
+    "https://extensionpay.com/*",
+    "https://api.polar.sh/*",
+    "https://buy.polar.sh/*"
   ],
 
   "background": {
@@ -43,7 +45,7 @@
 
   "web_accessible_resources": [
     {
-      "resources": ["library.html", "library.js", "skill-markdown.js", "icons/*", "icons/lovable-color.png", "icons/manus.png"],
+      "resources": ["library.html", "library.js", "gate.js", "skill-markdown.js", "icons/*", "icons/lovable-color.png", "icons/manus.png"],
       "matches":   ["<all_urls>"]
     }
   ],

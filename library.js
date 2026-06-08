@@ -14,21 +14,16 @@ let collections       = [];             // [{id, name, color}]
 
 const COLL_COLORS = ['#8a6dff','#5b8def','#ff6b2b','#10b981','#f59e0b','#ec4899'];
 
-// ── ExtensionPay ─────────────────────────────────────────────
-const extpay = ExtPay('uidrop'); // ← same app name as background.js
+// ── Trial gate (replaces ExtensionPay) ───────────────────────
+// Library is now free for everyone. Polar.sh license unlocks unlimited Pro features.
+// See gate.js for the trial counter + paywall logic.
 
 // ── Init ────────────────────────────────────────────────────
 async function init() {
-    // ── Payment gate ──────────────────────────────────────────
-    let user;
-    try { user = await extpay.getUser(); } catch (e) { user = { paid: false }; }
+    // Initialise the trial-bar + paywall listeners
+    if (window.UIDropGate?.initGate) window.UIDropGate.initGate();
 
-    if (!user.paid) {
-        showPayGate();
-        return;  // stop — don't load library content for unpaid users
-    }
-
-    // ── Paid — load library normally ──────────────────────────
+    // Library content loads for everyone now — trial counters enforce the limits
     const { snapHistory = [] } = await chrome.storage.local.get('snapHistory');
     allSnaps = snapHistory;
 
@@ -49,12 +44,18 @@ async function init() {
     document.getElementById('searchInput')      .addEventListener('input',  onSearch);
     document.getElementById('compareModeBtn')   .addEventListener('click',  toggleCompareMode);
     document.getElementById('cancelCompareMode').addEventListener('click',  exitCompareMode);
-    document.getElementById('goCompare')        .addEventListener('click',  openCompare);
+    // Gate: Compare consumes 1 use only when the user actually opens the comparison view
+    document.getElementById('goCompare')        .addEventListener('click',  () => window.UIDropGate.gate('compare', openCompare));
     document.getElementById('backBtn')          .addEventListener('click',  backToGrid);
     document.getElementById('detailBackBtn')    .addEventListener('click',  closeDetail);
     document.getElementById('starFilterBtn')    .addEventListener('click',  toggleStarFilter);
     document.getElementById('viewToggleBtn')    .addEventListener('click',  toggleViewMode);
-    document.getElementById('insightsBtn')      .addEventListener('click',  showInsightsModal);
+    // Gate: Insights modal
+    document.getElementById('insightsBtn')      .addEventListener('click',  () => window.UIDropGate.gate('insights', showInsightsModal));
+
+    // Attach trial badges to the gated topbar buttons
+    window.UIDropGate.attachTrialBadge(document.getElementById('compareModeBtn'), 'compare');
+    window.UIDropGate.attachTrialBadge(document.getElementById('insightsBtn'), 'insights');
     document.getElementById('insightsClose')    .addEventListener('click',  () => document.getElementById('insightsModal').classList.add('hidden'));
     document.getElementById('insightsModal')    .addEventListener('click',  e => { if (e.target === e.currentTarget) e.currentTarget.classList.add('hidden'); });
 
@@ -477,25 +478,36 @@ function openDetail(id) {
     const safeName = (snap.siteName || 'uidrop').replace(/[^a-z0-9]+/gi, '-').toLowerCase();
 
     document.getElementById('detailExportFigma').addEventListener('click', () => {
-        downloadFile(`${safeName}-figma-tokens.json`, buildFigmaTokens(snap), 'application/json');
-        navigator.clipboard.writeText(buildFigmaTokens(snap)).catch(()=>{});
-        flashExport('detailExportFigma', 'Downloaded');
+        window.UIDropGate.gate('exportFigma', () => {
+            downloadFile(`${safeName}-figma-tokens.json`, buildFigmaTokens(snap), 'application/json');
+            navigator.clipboard.writeText(buildFigmaTokens(snap)).catch(()=>{});
+            flashExport('detailExportFigma', 'Downloaded');
+        });
     });
     document.getElementById('detailExportCSS').addEventListener('click', () => {
-        downloadFile(`${safeName}-tokens.css`, buildCSSVars(snap), 'text/css');
-        navigator.clipboard.writeText(buildCSSVars(snap)).catch(()=>{});
-        flashExport('detailExportCSS', 'Downloaded');
+        window.UIDropGate.gate('exportCSS', () => {
+            downloadFile(`${safeName}-tokens.css`, buildCSSVars(snap), 'text/css');
+            navigator.clipboard.writeText(buildCSSVars(snap)).catch(()=>{});
+            flashExport('detailExportCSS', 'Downloaded');
+        });
     });
     document.getElementById('detailExportCanva').addEventListener('click', () => {
-        const palette = [snap.schema?.primaryColor, snap.schema?.accentColor, snap.schema?.surfaceColor, snap.schema?.textColor, snap.schema?.mutedText]
-            .filter(isHex).map(h => h.replace('#','').toUpperCase());
-        navigator.clipboard.writeText(buildCanvaPalette(snap)).catch(()=>{});
-        const canvaUrl = palette.length
-            ? `https://www.canva.com/colors/color-palettes/?colors=${palette.join(',')}`
-            : 'https://www.canva.com/colors/color-palette-generator/';
-        chrome.tabs.create({ url: canvaUrl });
-        flashExport('detailExportCanva', 'Opened Canva');
+        window.UIDropGate.gate('exportCanva', () => {
+            const palette = [snap.schema?.primaryColor, snap.schema?.accentColor, snap.schema?.surfaceColor, snap.schema?.textColor, snap.schema?.mutedText]
+                .filter(isHex).map(h => h.replace('#','').toUpperCase());
+            navigator.clipboard.writeText(buildCanvaPalette(snap)).catch(()=>{});
+            const canvaUrl = palette.length
+                ? `https://www.canva.com/colors/color-palettes/?colors=${palette.join(',')}`
+                : 'https://www.canva.com/colors/color-palette-generator/';
+            chrome.tabs.create({ url: canvaUrl });
+            flashExport('detailExportCanva', 'Opened Canva');
+        });
     });
+
+    // Attach trial badges to the 3 export buttons
+    window.UIDropGate.attachTrialBadge(document.getElementById('detailExportFigma'), 'exportFigma');
+    window.UIDropGate.attachTrialBadge(document.getElementById('detailExportCSS'),   'exportCSS');
+    window.UIDropGate.attachTrialBadge(document.getElementById('detailExportCanva'), 'exportCanva');
     document.getElementById('detailExportPoster').addEventListener('click', () => {
         exportPalettePoster(snap);
     });
@@ -1056,12 +1068,15 @@ function commitNewCollection() {
     const input = document.getElementById('collCreateInput');
     const name  = input.value.trim();
     if (!name) return;
-    const color = COLL_COLORS[collections.length % COLL_COLORS.length];
-    collections.push({ id: Date.now().toString(), name, color });
-    saveCollections();
-    input.value = '';
-    document.getElementById('collCreateWrap').classList.remove('visible');
-    renderCollectionsBar();
+    // Gate: creating a new collection consumes 1 trial use
+    window.UIDropGate.gate('collections', () => {
+        const color = COLL_COLORS[collections.length % COLL_COLORS.length];
+        collections.push({ id: Date.now().toString(), name, color });
+        saveCollections();
+        input.value = '';
+        document.getElementById('collCreateWrap').classList.remove('visible');
+        renderCollectionsBar();
+    });
 }
 
 function renderCollectionsBar() {
