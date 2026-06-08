@@ -18,13 +18,16 @@ const GATED = {
   collections:    { label: 'Collections',     icon: '🗂' },
 };
 
-// ── Polar.sh config (fill in after setup) ───────────────────────────────────
-const POLAR = {
-  // Paste from polar.sh dashboard after running POLAR_SETUP.md
-  checkoutUrl:    '__REPLACE_WITH_POLAR_CHECKOUT_URL__',   // e.g. https://buy.polar.sh/polar_cl_xxx
-  organizationId: '__REPLACE_WITH_POLAR_ORG_ID__',          // e.g. org_xxxxxxxxxxxx
+// ── Polar.sh config ─────────────────────────────────────────────────────────
+// Real values live in gate.config.local.js (gitignored).
+// If that file is loaded (via library.html) it sets window.UIDROP_POLAR and
+// overrides these placeholders. If not, the paywall buttons show a setup hint.
+const POLAR = Object.assign({
+  checkoutUrl:    '__REPLACE_WITH_POLAR_CHECKOUT_URL__',
+  organizationId: '__REPLACE_WITH_POLAR_ORG_ID__',
+  productId:      '__REPLACE_WITH_POLAR_PRODUCT_ID__',
   validateUrl:    'https://api.polar.sh/v1/customer-portal/license-keys/validate',
-};
+}, (typeof window !== 'undefined' && window.UIDROP_POLAR) || {});
 
 // ── State accessors ─────────────────────────────────────────────────────────
 async function getUsage() {
@@ -76,13 +79,17 @@ async function gate(feature, action) {
 async function validateLicenseKey(key) {
   if (!key || key.length < 8) return { ok: false, error: 'Invalid key format' };
   try {
+    const body = {
+      key: key.trim(),
+      organization_id: POLAR.organizationId,
+    };
+    // Polar accepts an optional benefit_id/product_id scope — include if set
+    if (POLAR.productId && !POLAR.productId.startsWith('__')) body.product_id = POLAR.productId;
+
     const res = await fetch(POLAR.validateUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        key: key.trim(),
-        organization_id: POLAR.organizationId,
-      }),
+      body: JSON.stringify(body),
     });
     const data = await res.json().catch(() => ({}));
     if (res.ok && data.status === 'granted') {
