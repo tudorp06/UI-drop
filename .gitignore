@@ -6,3 +6,18 @@ node_modules/
 .vscode/
 .idea/
 .claude/
+
+# ── Internal dev files — not for public repo ───────────────────────
+algorithm-audit.md
+gen_icons.py
+icon-gen.html
+popup-preview.html
+POLAR_SETUP.md
+
+# ── Secrets / local overrides — NEVER commit ──────────────────────
+.env
+.env.*
+*.local.js
+*.local.json
+polar.config.local.*
+secrets/
