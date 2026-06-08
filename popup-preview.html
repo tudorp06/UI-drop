@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>UIDrop Preview</title>
+<link href="https://api.fontshare.com/v2/css?f[]=switzer@400,500,600,700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+body{background:#1a1a2e;display:flex;gap:40px;padding:40px;align-items:flex-start;font-family:'Switzer',system-ui,sans-serif;}
+
+/* ── POPUP SHELL ── */
+.popup{
+  width:380px;
+  background:#0d0f18;
+  border-radius:16px;
+  border:1px solid rgba(255,255,255,0.07);
+  overflow:hidden;
+  box-shadow:0 24px 60px rgba(0,0,0,0.6);
+  color:#e8eaf4;
+}
+.popup-label{
+  color:rgba(255,255,255,0.4);font-size:11px;font-weight:600;
+  text-align:center;margin-bottom:10px;letter-spacing:1px;text-transform:uppercase;
+}
+
+/* ── HEADER ── */
+.header{
+  display:flex;align-items:center;gap:10px;
+  padding:14px 18px 12px;
+  border-bottom:1px solid rgba(255,255,255,0.06);
+}
+.brand-logo{width:24px;height:24px;border-radius:6px;}
+.wordmark{font-size:16px;font-weight:700;letter-spacing:-.4px;color:#fff;}
+.wordmark span{background:linear-gradient(135deg,#c084fc,#7c3aed,#38bdf8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.status-pill{
+  margin-left:auto;
+  display:flex;align-items:center;gap:5px;
+  font-size:11px;font-weight:500;
+  color:rgba(255,255,255,0.35);
+}
+.status-dot{
+  width:6px;height:6px;border-radius:50%;
+  background:#4ade80;
+  box-shadow:0 0 6px rgba(74,222,128,0.6);
+  flex-shrink:0;
+}
+
+/* ── SCREENSHOT ── */
+.screenshot{
+  margin:12px 18px 0;
+  height:130px;border-radius:10px;overflow:hidden;
+  background:linear-gradient(135deg,#f6f9fc,#e8eef7);
+  position:relative;
+  border:1px solid rgba(255,255,255,0.08);
+}
+.screenshot-inner{
+  position:absolute;inset:0;padding:12px 14px;
+  display:flex;flex-direction:column;gap:6px;
+}
+.sc-nav{display:flex;align-items:center;gap:6px;margin-bottom:4px;}
+.sc-dot{width:6px;height:6px;border-radius:50%;}
+.sc-url{font-size:9px;color:#94a3b8;margin-left:4px;font-family:'JetBrains Mono',monospace;}
+.sc-line{height:4px;border-radius:2px;}
+.sc-buttons{display:flex;gap:6px;margin-top:2px;}
+.sc-btn{height:14px;border-radius:3px;}
+.site-badge{
+  position:absolute;top:8px;right:8px;
+  background:rgba(13,15,24,0.75);backdrop-filter:blur(4px);
+  border:1px solid rgba(255,255,255,0.1);
+  border-radius:6px;padding:3px 8px;
+  font-size:9px;color:rgba(255,255,255,0.6);font-weight:500;
+  font-family:'JetBrains Mono',monospace;
+}
+
+/* ── SNAP BUTTON ── */
+.snap-btn{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  width:calc(100% - 36px);margin:10px 18px 0;
+  padding:11px;border-radius:10px;border:none;cursor:pointer;
+  background:linear-gradient(135deg,#c084fc,#7c3aed,#38bdf8);
+  color:#fff;font-family:'Switzer',sans-serif;font-size:13.5px;font-weight:600;
+  letter-spacing:-.1px;
+}
+
+/* ── SCHEMA PANEL ── */
+.schema-panel{
+  margin:12px 18px 0;
+  background:rgba(255,255,255,0.03);
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:12px;overflow:hidden;
+}
+.schema-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 14px 8px;
+  border-bottom:1px solid rgba(255,255,255,0.06);
+}
+.schema-site-name{
+  font-size:12.5px;font-weight:600;color:#fff;letter-spacing:-.2px;
+}
+.schema-meta{display:flex;align-items:center;gap:6px;}
+.schema-vibe{
+  font-size:10px;font-weight:500;
+  color:rgba(255,255,255,0.4);
+  background:rgba(255,255,255,0.06);
+  border-radius:4px;padding:2px 7px;
+}
+.schema-mode{font-size:10px;color:rgba(255,255,255,0.35);}
+
+/* Token rows */
+.token-section{padding:10px 14px;}
+.token-section + .token-section{border-top:1px solid rgba(255,255,255,0.05);}
+.token-section-label{
+  font-size:8.5px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;
+  color:rgba(255,255,255,0.25);margin-bottom:9px;
+}
+.token-row{
+  display:flex;align-items:center;gap:8px;
+  padding:4.5px 0;
+}
+.token-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0;border:1px solid rgba(255,255,255,0.12);}
+.token-key{font-size:11px;font-weight:500;color:rgba(255,255,255,0.4);min-width:52px;flex-shrink:0;}
+.token-val{font-family:'JetBrains Mono',monospace;font-size:11px;color:rgba(255,255,255,0.75);font-weight:400;}
+.token-val.text{font-family:'Switzer',sans-serif;font-size:11.5px;color:rgba(255,255,255,0.65);}
+
+/* ── SEND TO ── */
+.section-label{
+  font-size:10px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;
+  color:rgba(255,255,255,0.3);padding:12px 18px 7px;
+}
+.send-grid{
+  display:grid;grid-template-columns:1fr 1fr;
+  gap:8px;padding:0 18px;
+}
+.send-btn{
+  display:flex;align-items:center;gap:9px;
+  padding:9px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.09);
+  background:rgba(255,255,255,0.04);cursor:pointer;
+  color:rgba(255,255,255,0.7);font-family:'Switzer',sans-serif;
+  font-size:12.5px;font-weight:500;
+  transition:all .15s;
+}
+.send-btn:hover{border-color:rgba(255,255,255,0.18);background:rgba(255,255,255,0.07);color:#fff;}
+.btn-icon{
+  width:28px;height:28px;border-radius:7px;
+  display:flex;align-items:center;justify-content:center;
+  overflow:hidden;flex-shrink:0;
+  border:1px solid rgba(255,255,255,0.1);
+}
+.btn-icon img{width:100%;height:100%;object-fit:contain;}
+.btn-icon.white{background:#fff;border-color:rgba(0,0,0,0.1);}
+.btn-icon.gpt{background:#10a37f;}
+
+/* Copy row */
+.copy-row{
+  display:flex;gap:8px;padding:8px 18px 0;
+}
+.copy-btn{
+  flex:1;display:flex;align-items:center;justify-content:center;gap:7px;
+  padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.08);
+  background:transparent;cursor:pointer;
+  color:rgba(255,255,255,0.4);font-family:'Switzer',sans-serif;font-size:11.5px;font-weight:500;
+}
+.copy-btn:hover{color:rgba(255,255,255,0.7);border-color:rgba(255,255,255,0.15);}
+.copy-btn.cursor-btn{flex:0 0 auto;padding:8px 14px;}
+
+/* ── LIBRARY ── */
+.library-btn{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  width:calc(100% - 36px);margin:12px 18px 0;
+  padding:12px 16px;border-radius:10px;cursor:pointer;
+  background:linear-gradient(135deg,rgba(192,132,252,.1),rgba(124,58,237,.14),rgba(56,189,248,.08));
+  border:1px solid rgba(138,109,255,0.35);
+  color:rgba(255,255,255,0.85);font-family:'Switzer',sans-serif;
+  font-size:13px;font-weight:600;letter-spacing:-.1px;
+}
+.lib-badge{
+  margin-left:auto;display:flex;align-items:center;gap:5px;
+  font-size:10px;font-weight:600;
+  color:#a78bfa;background:rgba(138,109,255,0.12);
+  border:1px solid rgba(138,109,255,0.25);
+  border-radius:999px;padding:2px 9px;
+}
+
+/* ── SUPPORT ── */
+.support-row{
+  display:flex;gap:0;
+  border-top:1px solid rgba(255,255,255,0.05);
+  margin-top:12px;
+}
+.support-btn{
+  flex:1;display:flex;align-items:center;justify-content:center;gap:7px;
+  padding:13px 8px;
+  color:rgba(255,255,255,0.4);font-size:12px;font-weight:500;
+  text-decoration:none;cursor:pointer;
+  transition:color .15s,background .15s;
+}
+.support-btn:hover{color:rgba(255,255,255,0.7);background:rgba(255,255,255,0.03);}
+.support-btn + .support-btn{border-left:1px solid rgba(255,255,255,0.05);}
+</style>
+</head>
+<body>
+
+<!-- CURRENT -->
+<div>
+  <div class="popup-label">Current</div>
+  <div class="popup" style="opacity:0.5;filter:grayscale(0.3);">
+    <div class="header">
+      <img src="icons/icon128.png" class="brand-logo" alt=""/>
+      <div class="wordmark">UI<span>Drop</span></div>
+    </div>
+    <div style="height:130px;margin:12px 18px 0;background:rgba(255,255,255,0.04);border-radius:10px;border:1px solid rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.2);font-size:12px;">screenshot area</div>
+    <div style="margin:10px 18px 0;padding:11px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:10px;text-align:center;font-size:13px;color:rgba(255,255,255,0.5);">Snap this page</div>
+    <div style="margin:12px 18px 0;padding:12px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;font-size:11px;color:rgba(255,255,255,0.35);">schema text dumps here as a wall of small text that's hard to read quickly...</div>
+    <div style="font-size:10px;color:rgba(255,255,255,0.25);padding:10px 18px 6px;text-transform:uppercase;letter-spacing:1px;">Send to</div>
+    <div style="display:flex;gap:8px;padding:0 18px;">
+      <div style="flex:1;padding:10px 8px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:10px;text-align:center;font-size:11px;color:rgba(255,255,255,0.5);">Claude</div>
+      <div style="flex:1;padding:10px 8px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:10px;text-align:center;font-size:11px;color:rgba(255,255,255,0.5);">GPT</div>
+      <div style="flex:1;padding:10px 8px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:10px;text-align:center;font-size:11px;color:rgba(255,255,255,0.5);">Lovable</div>
+      <div style="flex:1;padding:10px 8px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:10px;text-align:center;font-size:11px;color:rgba(255,255,255,0.5);">Manus</div>
+    </div>
+    <div style="margin:8px 18px 0;display:flex;gap:8px;">
+      <div style="flex:1;padding:8px;border:1px solid rgba(255,255,255,0.07);border-radius:8px;text-align:center;font-size:11px;color:rgba(255,255,255,0.3);">Copy for Cursor</div>
+      <div style="flex:1;padding:8px;border:1px solid rgba(255,255,255,0.07);border-radius:8px;text-align:center;font-size:11px;color:rgba(255,255,255,0.3);">Copy schema</div>
+    </div>
+    <div style="margin:12px 18px 0;padding:12px 16px;border:1px solid rgba(138,109,255,0.3);border-radius:10px;text-align:center;font-size:13px;color:rgba(255,255,255,0.7);">📚 Snap Library · Lifetime</div>
+    <div style="display:flex;border-top:1px solid rgba(255,255,255,0.05);margin-top:12px;">
+      <div style="flex:1;padding:10px;text-align:center;font-size:11px;color:rgba(255,255,255,0.3);">☕ Buy me coffee</div>
+      <div style="flex:1;padding:10px;text-align:center;font-size:11px;color:rgba(255,255,255,0.3);border-left:1px solid rgba(255,255,255,0.05);">Share</div>
+    </div>
+    <div style="text-align:center;padding:8px;font-size:10px;color:rgba(255,255,255,0.15);">UIDrop</div>
+  </div>
+</div>
+
+<!-- NEW DESIGN -->
+<div>
+  <div class="popup-label">New Design</div>
+  <div class="popup">
+
+    <!-- Header -->
+    <div class="header">
+      <img src="icons/icon128.png" class="brand-logo" alt="UIDrop"/>
+      <div class="wordmark">UI<span>Drop</span></div>
+      <div class="status-pill">stripe.com</div>
+    </div>
+
+    <!-- Screenshot -->
+    <div class="screenshot">
+      <div class="screenshot-inner">
+        <div class="sc-nav">
+          <span class="sc-dot" style="background:#ff5f56;"></span>
+          <span class="sc-dot" style="background:#ffbd2e;"></span>
+          <span class="sc-dot" style="background:#27c93f;"></span>
+          <span class="sc-url">stripe.com</span>
+        </div>
+        <div class="sc-line" style="width:55%;background:#635bff;"></div>
+        <div class="sc-line" style="width:80%;background:#0a2540;height:3px;"></div>
+        <div class="sc-line" style="width:65%;background:#425466;height:2px;opacity:.5;"></div>
+        <div class="sc-buttons">
+          <div class="sc-btn" style="width:60px;background:#635bff;"></div>
+          <div class="sc-btn" style="width:48px;border:1.5px solid #635bff;border-radius:3px;"></div>
+        </div>
+      </div>
+      <div class="site-badge">stripe.com</div>
+    </div>
+
+    <!-- Snap button -->
+    <button class="snap-btn">
+      <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
+        <rect x="3" y="4" width="14" height="13" rx="2" stroke="white" stroke-width="1.6"/>
+        <path d="M7 4V3a1 1 0 011-1h4a1 1 0 011 1v1" stroke="white" stroke-width="1.6" stroke-linecap="round"/>
+        <circle cx="7.5" cy="11" r="1.4" fill="white"/>
+        <circle cx="10" cy="11" r="1.4" fill="white" opacity=".7"/>
+        <circle cx="12.5" cy="11" r="1.4" fill="white" opacity=".4"/>
+      </svg>
+      Snap this page
+    </button>
+
+    <!-- Schema panel — clean token rows -->
+    <div class="schema-panel">
+      <div class="schema-head">
+        <span class="schema-site-name">stripe.com</span>
+        <div class="schema-meta">
+          <span class="schema-vibe">Corporate</span>
+          <span class="schema-mode">☀️ Light</span>
+        </div>
+      </div>
+
+      <div class="token-section">
+        <div class="token-section-label">Palette</div>
+        <div class="token-row">
+          <div class="token-dot" style="background:#635bff;"></div>
+          <span class="token-key">primary</span>
+          <span class="token-val">#635BFF</span>
+        </div>
+        <div class="token-row">
+          <div class="token-dot" style="background:#00d4aa;"></div>
+          <span class="token-key">accent</span>
+          <span class="token-val">#00D4AA</span>
+        </div>
+        <div class="token-row">
+          <div class="token-dot" style="background:#0a2540;"></div>
+          <span class="token-key">text</span>
+          <span class="token-val">#0A2540</span>
+        </div>
+      </div>
+
+      <div class="token-section">
+        <div class="token-section-label">Typography &amp; Tokens</div>
+        <div class="token-row">
+          <div class="token-dot" style="background:transparent;border-color:rgba(255,255,255,0.15);"></div>
+          <span class="token-key">heading</span>
+          <span class="token-val text">Inter 700</span>
+        </div>
+        <div class="token-row">
+          <div class="token-dot" style="background:transparent;border-color:rgba(255,255,255,0.15);"></div>
+          <span class="token-key">radius</span>
+          <span class="token-val">8 / 12 / 16px</span>
+        </div>
+        <div class="token-row">
+          <div class="token-dot" style="background:transparent;border-color:rgba(255,255,255,0.15);"></div>
+          <span class="token-key">shadow</span>
+          <span class="token-val" style="font-size:10px;">0 4px 24px rgba(0,0,0,.08)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Send to — 2×2 grid -->
+    <div class="section-label">Send to</div>
+    <div class="send-grid">
+      <button class="send-btn">
+        <div class="btn-icon"><img src="icons/claude-logo-64.png" alt=""/></div>
+        Claude
+      </button>
+      <button class="send-btn">
+        <div class="btn-icon gpt">
+          <svg viewBox="0 0 41 41" width="20" height="20" fill="white"><path d="M37.532 16.87a9.963 9.963 0 00-.856-8.184 10.078 10.078 0 00-10.855-4.835 9.964 9.964 0 00-7.505-3.348 10.079 10.079 0 00-9.61 6.977 9.967 9.967 0 00-6.664 4.834 10.08 10.08 0 001.24 11.817 9.965 9.965 0 00.856 8.185 10.079 10.079 0 0010.855 4.835 9.965 9.965 0 007.504 3.347 10.078 10.078 0 009.617-6.981 9.967 9.967 0 006.663-4.834 10.079 10.079 0 00-1.245-11.813zM22.498 37.886a7.474 7.474 0 01-4.799-1.735c.061-.033.168-.091.237-.134l7.964-4.6a1.294 1.294 0 00.655-1.134V19.054l3.366 1.944a.12.12 0 01.066.092v9.299a7.505 7.505 0 01-7.49 7.496zM6.392 31.006a7.471 7.471 0 01-.894-5.023c.06.036.162.099.237.141l7.964 4.6a1.297 1.297 0 001.308 0l9.724-5.614v3.888a.12.12 0 01-.048.103l-8.051 4.649a7.504 7.504 0 01-10.24-2.744zM4.297 13.62A7.469 7.469 0 018.2 10.333c0 .068-.004.19-.004.274v9.201a1.294 1.294 0 00.654 1.132l9.723 5.614-3.366 1.944a.12.12 0 01-.114.012L7.044 23.86a7.504 7.504 0 01-2.747-10.24zm27.658 6.437l-9.724-5.615 3.367-1.943a.121.121 0 01.114-.012l8.048 4.648a7.498 7.498 0 01-1.158 13.528v-9.476a1.293 1.293 0 00-.647-1.13zm3.35-5.043c-.059-.037-.162-.099-.236-.141l-7.965-4.6a1.298 1.298 0 00-1.308 0l-9.723 5.614v-3.888a.12.12 0 01.048-.103l8.05-4.645a7.497 7.497 0 0111.135 7.763zm-21.063 6.929l-3.367-1.944a.12.12 0 01-.065-.092v-9.299a7.497 7.497 0 0112.293-5.756 6.94 6.94 0 00-.236.134l-7.965 4.6a1.294 1.294 0 00-.654 1.132l-.006 11.225zm1.829-3.943l4.33-2.501 4.332 2.5v4.999l-4.331 2.5-4.331-2.5V18z"/></svg>
+        </div>
+        GPT
+      </button>
+      <button class="send-btn">
+        <div class="btn-icon white"><img src="icons/lovable-color.png" alt=""/></div>
+        Lovable
+      </button>
+      <button class="send-btn">
+        <div class="btn-icon white"><img src="icons/manus.png" alt=""/></div>
+        Manus
+      </button>
+    </div>
+
+    <!-- Copy row -->
+    <div class="copy-row">
+      <button class="copy-btn cursor-btn">
+        <img src="icons/cursor-logo-64.png" width="13" height="13" style="border-radius:3px;opacity:.7;"/>
+        Copy for Cursor
+      </button>
+      <button class="copy-btn">
+        <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="5" y="5" width="8" height="8" rx="1.5"/><path d="M3 11V3h8"/></svg>
+        Copy schema
+      </button>
+    </div>
+
+    <!-- Library -->
+    <button class="library-btn">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+      Snap Library
+      <div class="lib-badge">
+        <svg width="8" height="10" viewBox="0 0 24 30" fill="none"><path d="M12 0C12 0 1 14 1 20a11 11 0 0022 0C23 14 12 0 12 0z" fill="url(#pd)"/><defs><linearGradient id="pd" x1="0" y1="0" x2="24" y2="30" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#c084fc"/><stop offset="55%" stop-color="#7c3aed"/><stop offset="100%" stop-color="#38bdf8"/></linearGradient></defs></svg>
+        Lifetime
+      </div>
+    </button>
+
+    <!-- Support -->
+    <div class="support-row">
+      <a class="support-btn" href="#">
+        <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 7h12l-1.5 8H5.5L4 7z"/><path d="M16 7c1.5 0 2.5.8 2.5 2s-1 2-2.5 2"/><path d="M7 4c0-1.1.9-2 2-2s2 .9 2 2"/></svg>
+        Buy me a coffee
+      </a>
+      <a class="support-btn" href="#">
+        <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="15" cy="4" r="2"/><circle cx="5" cy="10" r="2"/><circle cx="15" cy="16" r="2"/><path d="M7 9l6-3.5M7 11l6 3.5"/></svg>
+        Share
+      </a>
+    </div>
+
+  </div><!-- /popup -->
+</div>
+
+</body>
+</html>

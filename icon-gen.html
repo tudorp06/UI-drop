@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  body { background: #1a1a1a; display: flex; flex-direction: column; align-items: center; gap: 24px; padding: 40px; font-family: sans-serif; }
+  canvas { border-radius: 16px; }
+  .row { display: flex; gap: 20px; align-items: flex-end; }
+  .label { color: #888; font-size: 12px; text-align: center; margin-top: 6px; }
+  button { background: #7c3aed; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 14px; margin-top: 16px; }
+  button:hover { background: #6d28d9; }
+</style>
+</head>
+<body>
+
+<div class="row" id="previews"></div>
+<button onclick="downloadAll()">Download all sizes</button>
+
+<script>
+function drawDrop(canvas, size) {
+  const ctx = canvas.getContext('2d');
+  canvas.width = size;
+  canvas.height = size;
+
+  const pad = size * 0.11;  // padding so drop never touches edge
+  const cx = size / 2;
+
+  // Drop geometry — fits fully within canvas with breathing room
+  const topY    = pad * 1.1;          // pointed top
+  const botY    = size - pad * 1.0;   // bottom of circle (with padding)
+  const halfW   = (size - pad * 2) * 0.46; // max half-width
+  const wideY   = topY + (botY - topY) * 0.62; // widest point at 62% down
+
+  // Gradient: diagonal, top-left warm → bottom-right cool
+  const grad = ctx.createLinearGradient(cx - halfW, topY, cx + halfW, botY);
+  grad.addColorStop(0,    '#f0abfc'); // lilac pink
+  grad.addColorStop(0.35, '#c084fc'); // purple
+  grad.addColorStop(0.7,  '#818cf8'); // indigo
+  grad.addColorStop(1,    '#60a5fa'); // sky blue
+
+  // Background
+  ctx.fillStyle = '#0d0d14';
+  ctx.fillRect(0, 0, size, size);
+
+  // Drop path — smooth teardrop, bottom is fully inside canvas
+  ctx.beginPath();
+  ctx.moveTo(cx, topY);
+
+  // top → right widest
+  ctx.bezierCurveTo(
+    cx + halfW * 0.7,  topY + (wideY - topY) * 0.3,
+    cx + halfW,        wideY - halfW * 0.15,
+    cx + halfW,        wideY
+  );
+  // right widest → bottom (semicircle)
+  ctx.bezierCurveTo(
+    cx + halfW,        wideY + halfW * 0.8,
+    cx + halfW * 0.6,  botY,
+    cx,                botY
+  );
+  // bottom → left widest (mirror)
+  ctx.bezierCurveTo(
+    cx - halfW * 0.6,  botY,
+    cx - halfW,        wideY + halfW * 0.8,
+    cx - halfW,        wideY
+  );
+  // left widest → top
+  ctx.bezierCurveTo(
+    cx - halfW,        wideY - halfW * 0.15,
+    cx - halfW * 0.7,  topY + (wideY - topY) * 0.3,
+    cx,                topY
+  );
+  ctx.closePath();
+
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Subtle inner shine — top-left highlight
+  const shine = ctx.createRadialGradient(
+    cx - halfW * 0.25, topY + (botY - topY) * 0.2, 0,
+    cx - halfW * 0.25, topY + (botY - topY) * 0.2, halfW * 0.7
+  );
+  shine.addColorStop(0,   'rgba(255,255,255,0.18)');
+  shine.addColorStop(0.5, 'rgba(255,255,255,0.04)');
+  shine.addColorStop(1,   'rgba(255,255,255,0)');
+
+  ctx.fillStyle = shine;
+  ctx.fill();
+}
+
+const sizes = [512, 128, 48, 16];
+const previews = document.getElementById('previews');
+
+sizes.forEach(s => {
+  const wrap = document.createElement('div');
+  const c = document.createElement('canvas');
+  drawDrop(c, s);
+  const lbl = document.createElement('div');
+  lbl.className = 'label';
+  lbl.textContent = `${s}×${s}`;
+  wrap.appendChild(c);
+  wrap.appendChild(lbl);
+  previews.appendChild(wrap);
+});
+
+function downloadAll() {
+  sizes.forEach(s => {
+    const c = document.createElement('canvas');
+    drawDrop(c, s);
+    const a = document.createElement('a');
+    a.download = `icon${s}.png`;
+    a.href = c.toDataURL('image/png');
+    a.click();
+  });
+}
+</script>
+</body>
+</html>

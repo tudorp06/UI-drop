@@ -185,6 +185,32 @@ function renderGrid() {
             });
         }
 
+        // Action chip row
+        card.querySelectorAll('.snap-action').forEach(btn => {
+            btn.addEventListener('click', e => {
+                e.stopPropagation();
+                const act = btn.dataset.act;
+                if (act === 'open')   return openDetail(id);
+                if (act === 'del')    return deleteSnap(id);
+                if (act === 'export') return openDetail(id);
+                if (act === 'visit') {
+                    const url = btn.dataset.url;
+                    if (url) chrome.tabs.create({ url });
+                    return;
+                }
+                if (act === 'copyhex') {
+                    const hex = btn.dataset.hex;
+                    if (!hex) return;
+                    navigator.clipboard.writeText(hex).then(() => {
+                        const orig = btn.innerHTML;
+                        btn.classList.add('copied');
+                        btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg> Copied';
+                        setTimeout(() => { btn.classList.remove('copied'); btn.innerHTML = orig; }, 1400);
+                    });
+                }
+            });
+        });
+
         card.addEventListener('click', () => {
             if (compareModeOn) toggleSelect(id);
             else openDetail(id);
@@ -259,11 +285,20 @@ function snapCardHTML(snap) {
         <div class="snap-palette">
           ${palette.map(c => `<div class="snap-swatch" style="background:${c}" title="${c}"></div>`).join('')}
         </div>
-        <div class="snap-recs">
-            ${recs.slice(0,2).map(r =>
-                `<span class="snap-rec">${escHtml(r.type)}</span>`
-            ).join('')}
-            ${recs.length > 2 ? `<span class="snap-rec-more">+${recs.length - 2}</span>` : ''}
+        <div class="snap-actions">
+          ${primaryColor ? `
+          <button class="snap-action" data-act="copyhex" data-hex="${primaryColor}" title="Copy primary color">
+            <span style="width:9px;height:9px;border-radius:2px;background:${primaryColor};border:1px solid rgba(255,255,255,.15)"></span>
+            Copy hex
+          </button>` : ''}
+          <button class="snap-action" data-act="visit" data-url="${escHtml(snap.url || '')}" title="Open original site">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            Visit
+          </button>
+          <button class="snap-action danger" data-act="del" title="Delete snap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
+            Remove
+          </button>
         </div>
       </div>
     </div>`;
@@ -431,14 +466,35 @@ function openDetail(id) {
         setTimeout(() => { btn.innerHTML = orig; }, 2000);
     };
 
+    const downloadFile = (filename, content, mime) => {
+        const blob = new Blob([content], { type: mime });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = filename;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    };
+    const safeName = (snap.siteName || 'uidrop').replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+
     document.getElementById('detailExportFigma').addEventListener('click', () => {
-        navigator.clipboard.writeText(buildFigmaTokens(snap)).then(() => flashExport('detailExportFigma', 'Copied!'));
+        downloadFile(`${safeName}-figma-tokens.json`, buildFigmaTokens(snap), 'application/json');
+        navigator.clipboard.writeText(buildFigmaTokens(snap)).catch(()=>{});
+        flashExport('detailExportFigma', 'Downloaded');
     });
     document.getElementById('detailExportCSS').addEventListener('click', () => {
-        navigator.clipboard.writeText(buildCSSVars(snap)).then(() => flashExport('detailExportCSS', 'Copied!'));
+        downloadFile(`${safeName}-tokens.css`, buildCSSVars(snap), 'text/css');
+        navigator.clipboard.writeText(buildCSSVars(snap)).catch(()=>{});
+        flashExport('detailExportCSS', 'Downloaded');
     });
     document.getElementById('detailExportCanva').addEventListener('click', () => {
-        navigator.clipboard.writeText(buildCanvaPalette(snap)).then(() => flashExport('detailExportCanva', 'Copied!'));
+        const palette = [snap.schema?.primaryColor, snap.schema?.accentColor, snap.schema?.surfaceColor, snap.schema?.textColor, snap.schema?.mutedText]
+            .filter(isHex).map(h => h.replace('#','').toUpperCase());
+        navigator.clipboard.writeText(buildCanvaPalette(snap)).catch(()=>{});
+        const canvaUrl = palette.length
+            ? `https://www.canva.com/colors/color-palettes/?colors=${palette.join(',')}`
+            : 'https://www.canva.com/colors/color-palette-generator/';
+        chrome.tabs.create({ url: canvaUrl });
+        flashExport('detailExportCanva', 'Opened Canva');
     });
     document.getElementById('detailExportPoster').addEventListener('click', () => {
         exportPalettePoster(snap);

@@ -11,7 +11,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       chrome.tabs.captureVisibleTab(
         tabs[0].windowId,
-        { format: "png", quality: 90 },
+        { format: "jpeg", quality: 92 },
         (dataUrl) => {
           if (chrome.runtime.lastError) sendResponse({ error: chrome.runtime.lastError.message });
           else sendResponse({ screenshot: dataUrl });
