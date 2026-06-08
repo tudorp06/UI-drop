@@ -21,37 +21,10 @@ let skillMarkdown = '';
 let snappedSiteName = '';
 let formatMode = 'brief';   // 'brief' | 'skill'
 
-// ── ExtensionPay ──────────────────────────────────────────────
-const extpay = ExtPay('uidrop'); // ← same app name as background.js
-
-// ── Open the Snap Library — gated behind payment ──
-btnLibrary.addEventListener('click', async () => {
-    let user;
-    try { user = await extpay.getUser(); } catch (e) { user = { paid: false }; }
-
-    if (user.paid) {
-        chrome.tabs.create({ url: chrome.runtime.getURL('library.html') });
-    } else {
-        extpay.openPaymentPage();
-    }
+// ── Open the Snap Library — free for everyone, trial gates live inside ──
+btnLibrary.addEventListener('click', () => {
+    chrome.tabs.create({ url: chrome.runtime.getURL('library.html') });
 });
-
-// ── Reflect payment state on the library button ──────────────
-(async () => {
-    let user;
-    try { user = await extpay.getUser(); } catch (e) { user = { paid: false }; }
-    if (!user.paid) {
-        const badge = btnLibrary.querySelector('.library-badge');
-        if (badge) {
-            badge.innerHTML = `
-                <svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                  <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                </svg>
-                Unlock`;
-        }
-        btnLibrary.classList.add('library-btn-locked');
-    }
-})();
 
 (async function init() {
     document.getElementById('setupView')?.classList.add('hidden');

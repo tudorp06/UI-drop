@@ -72,22 +72,7 @@ async function init() {
     });
 }
 
-function showPayGate() {
-    document.getElementById('payGate').classList.remove('hidden');
-
-    document.getElementById('payBtn').addEventListener('click', () => {
-        extpay.openPaymentPage();
-    });
-    document.getElementById('payLoginBtn').addEventListener('click', () => {
-        extpay.openLoginPage();
-    });
-
-    // Re-check after the payment tab closes — user might have just paid
-    extpay.onPaid.addListener(() => {
-        document.getElementById('payGate').classList.add('hidden');
-        init();
-    });
-}
+// Legacy showPayGate() removed — ExtPay gone, new gate.js + paywall modal in library.html handle it.
 
 // ── Search ───────────────────────────────────────────────────
 function onSearch(e) {

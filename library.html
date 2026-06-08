@@ -1222,53 +1222,8 @@ body.compare-mode .snap-pin { display:none !important; }
 
 </div>
 
-<!-- Payment gate — shown when user hasn't paid -->
-<div class="pay-gate hidden" id="payGate">
-  <div class="pay-gate-card">
+<!-- Legacy ExtPay payment gate removed — replaced by the new #paywall modal above. -->
 
-    <div class="pay-gate-logo">
-      <svg width="36" height="44" viewBox="0 0 24 30" fill="none">
-        <path d="M12 0C12 0 1 14 1 20a11 11 0 0022 0C23 14 12 0 12 0z" fill="url(#pgGrad)"/>
-        <defs>
-          <linearGradient id="pgGrad" x1="0" y1="0" x2="24" y2="30" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stop-color="#3b82f6"/>
-            <stop offset="55%" stop-color="#3b82f6"/>
-            <stop offset="100%" stop-color="#5b8def"/>
-          </linearGradient>
-        </defs>
-      </svg>
-    </div>
-
-    <h2 class="pay-gate-title">Snap Library is a<br/><em>Pro</em> feature</h2>
-    <p class="pay-gate-sub">One payment, yours forever. No subscription.</p>
-
-    <ul class="pay-gate-perks">
-      <li>Save &amp; browse your full design history</li>
-      <li>Compare any two sites side-by-side</li>
-      <li>Export to Figma Tokens, CSS vars, Canva</li>
-      <li>Send snaps directly to Claude, Cursor &amp; Codex</li>
-      <li>Moodboard view + favourites</li>
-    </ul>
-
-    <div class="pay-gate-price">
-      <span class="pay-gate-amount">$2</span>
-      <span class="pay-gate-once">one-time · forever</span>
-    </div>
-
-    <button class="pay-gate-cta" id="payBtn">Unlock Pro Access →</button>
-
-    <div class="pay-gate-divider">
-      <span>or</span>
-    </div>
-
-    <button class="pay-gate-login" id="payLoginBtn">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
-      Already paid? Sign in to restore access
-    </button>
-    <p class="pay-gate-reinstall-hint">Reinstalled the extension? Sign in with your purchase email to unlock instantly — no payment needed.</p>
-
-  </div>
-</div>
 
 <!-- Insights modal -->
 <div class="insights-modal hidden" id="insightsModal">
@@ -1282,7 +1237,6 @@ body.compare-mode .snap-pin { display:none !important; }
   </div>
 </div>
 
-<script src="ExtPay.js"></script>
 <script src="skill-markdown.js"></script>
 <script src="gate.js"></script>
 <script src="library.js"></script>

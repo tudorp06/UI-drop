@@ -1,10 +1,3 @@
-// ── ExtensionPay ──────────────────────────────────────────────
-// Download ExtPay.js from https://extensionpay.com and place it
-// in the extension root folder alongside this file.
-importScripts('ExtPay.js');
-const extpay = ExtPay('uidrop'); // ← replace 'uidrop' with your ExtensionPay app name
-extpay.startBackground();
-
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.action === "takeScreenshot") {
