@@ -330,6 +330,70 @@ body::-webkit-scrollbar-corner {
   transition: opacity 0.3s;
 }
 
+/* ── SNAP SCAN LINE — sweeps top→bottom while we wait for tokens ── */
+.snap-scan-line {
+  position: absolute;
+  left: 0; right: 0;
+  top: 0;
+  height: 60px;
+  background: linear-gradient(180deg,
+    transparent 0%,
+    rgba(96, 165, 250, 0.18) 40%,
+    rgba(96, 165, 250, 0.55) 50%,
+    rgba(96, 165, 250, 0.18) 60%,
+    transparent 100%);
+  filter: blur(1px);
+  opacity: 0;
+  transform: translateY(-60px);
+  pointer-events: none;
+  z-index: 3;
+}
+/* Subtle blue tint over the whole schema box while scanning */
+.schema.scanning {
+  background: linear-gradient(180deg,
+    var(--bg-card) 0%,
+    rgba(59, 130, 246, 0.06) 50%,
+    var(--bg-card) 100%);
+}
+.schema.scanning .snap-scan-line {
+  opacity: 1;
+  animation: snapScan 1100ms cubic-bezier(.4,0,.2,1) infinite;
+}
+/* Hide schema content while scanning so the sweep reads clearly */
+.schema.scanning .schema-head,
+.schema.scanning .schema-body { opacity: 0.25; transition: opacity .2s; }
+
+@keyframes snapScan {
+  0%   { transform: translateY(-60px); }
+  100% { transform: translateY(100%); }
+}
+
+/* Skeleton placeholder rows shown while scanning */
+.scan-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+}
+.scan-skeleton-row {
+  height: 14px;
+  border-radius: 4px;
+  background: linear-gradient(90deg,
+    rgba(255,255,255,0.04) 0%,
+    rgba(96,165,250,0.10) 50%,
+    rgba(255,255,255,0.04) 100%);
+  background-size: 200% 100%;
+  animation: skelShimmer 1.4s ease-in-out infinite;
+}
+.scan-skeleton-row:nth-child(1) { width: 60%; }
+.scan-skeleton-row:nth-child(2) { width: 85%; }
+.scan-skeleton-row:nth-child(3) { width: 45%; }
+.scan-skeleton-row:nth-child(4) { width: 72%; }
+@keyframes skelShimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
 .schema::before {
   content: "";
   position: absolute;

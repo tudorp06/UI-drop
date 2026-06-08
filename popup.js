@@ -39,6 +39,18 @@ async function performSnap() {
     snapBtn.disabled = true;
     snapBtn.textContent = 'Snapping…';
 
+    // ── Show scan animation immediately so the user feels something happening
+    // The sweep loops over a skeleton until real tokens land.
+    schemaBox.classList.remove('hidden');
+    schemaBox.classList.add('scanning');
+    schemaBody.innerHTML = `
+      <div class="scan-skeleton">
+        <div class="scan-skeleton-row"></div>
+        <div class="scan-skeleton-row"></div>
+        <div class="scan-skeleton-row"></div>
+        <div class="scan-skeleton-row"></div>
+      </div>`;
+
     try {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
@@ -85,6 +97,10 @@ async function performSnap() {
 
         const schema = buildDesignSystem(tokens);
 
+        // Make sure the scan sweep gets at least one full visible pass
+        // (extraction is often <300ms; we want the animation to register)
+        await new Promise(r => setTimeout(r, 350));
+        schemaBox.classList.remove('scanning');
         renderSchema(schema, tokens.siteName);
 
         briefPrompt    = buildFinalPrompt(schema);
@@ -113,6 +129,8 @@ async function performSnap() {
     } catch (err) {
         console.error('UIDrop error:', err);
         snapBtn.disabled = false;
+        schemaBox.classList.remove('scanning');
+        schemaBox.classList.add('hidden');  // hide skeleton on error
 
         const msg = err?.message || '';
         if (msg.includes('cannot be scripted') || msg.includes('extensions gallery') || msg.includes('chrome://') || msg.includes('Cannot access')) {
