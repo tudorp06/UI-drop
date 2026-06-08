@@ -867,7 +867,7 @@ btnClaude.addEventListener('click', async () => {
     chrome.runtime.sendMessage({
         action: 'openWithPrompt', target: 'claude',
         url: 'https://claude.ai/new',
-        prompt: payload.prompt, screenshot, skillFile: payload.skillFile
+        prompt: payload.prompt, screenshot, slug: snappedSiteName || 'snap', skillFile: payload.skillFile
     });
 });
 
@@ -878,7 +878,7 @@ btnChatGPT.addEventListener('click', async () => {
     chrome.runtime.sendMessage({
         action: 'openWithPrompt', target: 'chatgpt',
         url: 'https://chatgpt.com/',
-        prompt: payload.prompt, screenshot, skillFile: payload.skillFile
+        prompt: payload.prompt, screenshot, slug: snappedSiteName || 'snap', skillFile: payload.skillFile
     });
 });
 
@@ -894,7 +894,7 @@ btnGemini.addEventListener('click', async () => {
     chrome.runtime.sendMessage({
         action: 'openWithPrompt', target: 'gemini',
         url: 'https://gemini.google.com/app',
-        prompt: payload.prompt, screenshot, skillFile: payload.skillFile
+        prompt: payload.prompt, screenshot, slug: snappedSiteName || 'snap', skillFile: payload.skillFile
     });
 });
 
@@ -905,7 +905,7 @@ btnLovable.addEventListener('click', async () => {
     chrome.runtime.sendMessage({
         action: 'openWithPrompt', target: 'lovable',
         url: 'https://lovable.dev/',
-        prompt: payload.prompt, screenshot, skillFile: payload.skillFile
+        prompt: payload.prompt, screenshot, slug: snappedSiteName || 'snap', skillFile: payload.skillFile
     });
 });
 
@@ -916,7 +916,7 @@ btnManus.addEventListener('click', async () => {
     chrome.runtime.sendMessage({
         action: 'openWithPrompt', target: 'manus',
         url: 'https://manus.im/',
-        prompt: payload.prompt, screenshot, skillFile: payload.skillFile
+        prompt: payload.prompt, screenshot, slug: snappedSiteName || 'snap', skillFile: payload.skillFile
     });
 });
 

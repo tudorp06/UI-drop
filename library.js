@@ -586,7 +586,7 @@ function openDetail(id) {
         chrome.runtime.sendMessage({
             action: 'openWithPrompt', target: 'gemini',
             url: 'https://gemini.google.com/app',
-            prompt: activePrompt, screenshot: snap.thumbnail, skillFile: detailSkillFile()
+            prompt: activePrompt, screenshot: snap.thumbnail, slug: snapSlug, skillFile: detailSkillFile()
         });
     });
 
@@ -596,7 +596,7 @@ function openDetail(id) {
         chrome.runtime.sendMessage({
             action: 'openWithPrompt', target: 'claude',
             url: 'https://claude.ai/new',
-            prompt: activePrompt, screenshot: snap.thumbnail, skillFile: detailSkillFile()
+            prompt: activePrompt, screenshot: snap.thumbnail, slug: snapSlug, skillFile: detailSkillFile()
         });
     });
 
@@ -606,7 +606,7 @@ function openDetail(id) {
         chrome.runtime.sendMessage({
             action: 'openWithPrompt', target: 'lovable',
             url: 'https://lovable.dev/',
-            prompt: activePrompt, screenshot: snap.thumbnail, skillFile: detailSkillFile()
+            prompt: activePrompt, screenshot: snap.thumbnail, slug: snapSlug, skillFile: detailSkillFile()
         });
     });
 
@@ -616,7 +616,7 @@ function openDetail(id) {
         chrome.runtime.sendMessage({
             action: 'openWithPrompt', target: 'manus',
             url: 'https://manus.im/',
-            prompt: activePrompt, screenshot: snap.thumbnail, skillFile: detailSkillFile()
+            prompt: activePrompt, screenshot: snap.thumbnail, slug: snapSlug, skillFile: detailSkillFile()
         });
     });
 
@@ -636,7 +636,7 @@ function openDetail(id) {
         if (!activePrompt) return;
         chrome.runtime.sendMessage({
             action: 'openWithPrompt', target: 'chatgpt',
-            url: 'https://chatgpt.com/', prompt: activePrompt, screenshot: snap.thumbnail
+            url: 'https://chatgpt.com/', prompt: activePrompt, screenshot: snap.thumbnail, slug: snapSlug
         });
     });
 

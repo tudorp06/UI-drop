@@ -37,7 +37,7 @@ async function findExistingTab(target) {
   return tabs.find(t => t.active) || tabs[tabs.length - 1] || null;
 }
 
-async function openAndInject({ target, url, prompt, screenshot, skillFile }) {
+async function openAndInject({ target, url, prompt, screenshot, skillFile, slug }) {
   // Reuse an existing tab for this AI tool if one is already open —
   // no need to spam the user with extra tabs every single snap.
   let tab = await findExistingTab(target);
@@ -61,7 +61,7 @@ async function openAndInject({ target, url, prompt, screenshot, skillFile }) {
     const [result] = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       func: injectPromptIntoEditor,
-      args: [prompt, screenshot, target, skillFile || null]
+      args: [prompt, screenshot, target, skillFile || null, slug || 'snap']
     });
     console.log('UIDrop: inject result', result?.result);
   } catch (e) {
@@ -81,7 +81,7 @@ function waitForTabComplete(tabId) {
   });
 }
 
-async function injectPromptIntoEditor(text, imageDataUrl, target, skillFile) {
+async function injectPromptIntoEditor(text, imageDataUrl, target, skillFile, slug) {
 
   // ── 1. Find the editor ──────────────────────────────────────
   const selectors = target === 'claude'
@@ -174,17 +174,41 @@ async function injectPromptIntoEditor(text, imageDataUrl, target, skillFile) {
   }
 
   // ── 4. Attach SCREENSHOT ───────────────────────────────────
-  // Completely separate from the text step — a paste event whose
-  // clipboardData contains ONLY the image file, no text at all.
-  // Because there is no text in the DataTransfer, no editor can
-  // accidentally insert a second copy of the brief.
+  // The saved dataURL is JPEG (smaller storage) — but we re-encode to
+  // true PNG via canvas before attaching so the .png filename / MIME
+  // match the actual bytes. Lossless re-encode: same pixels, just PNG-wrapped.
+  // Pasted via ClipboardEvent (image only, no text) — no clipboard pollution,
+  // no download dialog, no double-text bug.
   if (imageDataUrl) {
     try {
-      const res  = await fetch(imageDataUrl);
+      // Step 1: load source into an Image (works for both JPEG and PNG dataURLs)
+      const pngDataUrl = await new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width  = img.naturalWidth;
+          canvas.height = img.naturalHeight;
+          const ctx = canvas.getContext('2d');
+          ctx.imageSmoothingEnabled = false;  // preserve pixel-for-pixel quality
+          ctx.drawImage(img, 0, 0);
+          resolve(canvas.toDataURL('image/png'));  // re-encode as real PNG
+        };
+        img.onerror = () => reject(new Error('image decode failed'));
+        img.src = imageDataUrl;
+      });
+
+      // Step 2: dataURL → Blob → File (now truly PNG)
+      const res  = await fetch(pngDataUrl);
       const blob = await res.blob();
-      const file = new File([blob], 'uidrop-screenshot.png', { type: 'image/png' });
-      const dt   = new DataTransfer();
-      dt.items.add(file);   // image only — intentionally no text entry
+
+      // Step 3: meaningful filename — e.g. uidrop-stripe-1717689600000.png
+      const safeSlug = (slug || 'snap').replace(/[^a-z0-9-]+/gi, '-').slice(0, 40) || 'snap';
+      const filename = `uidrop-${safeSlug}-${Date.now()}.png`;
+      const file = new File([blob], filename, { type: 'image/png' });
+
+      // Step 4: paste it (image-only DataTransfer — no text)
+      const dt = new DataTransfer();
+      dt.items.add(file);
       editor.focus();
       editor.dispatchEvent(new ClipboardEvent('paste', {
         bubbles: true, cancelable: true, clipboardData: dt
