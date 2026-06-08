@@ -41,10 +41,13 @@ async function performSnap() {
 
     // ── Show scan animation immediately so the user feels something happening
     // The sweep loops over a skeleton until real tokens land.
+    const scanStart = performance.now();
     schemaBox.classList.remove('hidden');
     schemaBox.classList.add('scanning');
     schemaBody.innerHTML = `
       <div class="scan-skeleton">
+        <div class="scan-skeleton-row"></div>
+        <div class="scan-skeleton-row"></div>
         <div class="scan-skeleton-row"></div>
         <div class="scan-skeleton-row"></div>
         <div class="scan-skeleton-row"></div>
@@ -97,10 +100,18 @@ async function performSnap() {
 
         const schema = buildDesignSystem(tokens);
 
-        // Make sure the scan sweep gets at least one full visible pass
-        // (extraction is often <300ms; we want the animation to register)
-        await new Promise(r => setTimeout(r, 350));
+        // Guarantee at least one slow, satisfying sweep (~1.7s loop).
+        // If extraction was fast, we wait so the animation actually registers;
+        // if it was slow, we don't add anything on top.
+        const MIN_SCAN_MS = 1700;
+        const elapsed = performance.now() - scanStart;
+        if (elapsed < MIN_SCAN_MS) {
+            await new Promise(r => setTimeout(r, MIN_SCAN_MS - elapsed));
+        }
         schemaBox.classList.remove('scanning');
+        // Let the .scanning fade-out transition (450ms) play before
+        // swapping skeleton for real schema content
+        await new Promise(r => setTimeout(r, 280));
         renderSchema(schema, tokens.siteName);
 
         briefPrompt    = buildFinalPrompt(schema);

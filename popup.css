@@ -335,18 +335,20 @@ body::-webkit-scrollbar-corner {
   position: absolute;
   left: 0; right: 0;
   top: 0;
-  height: 60px;
+  height: 80px;
   background: linear-gradient(180deg,
     transparent 0%,
-    rgba(96, 165, 250, 0.18) 40%,
-    rgba(96, 165, 250, 0.55) 50%,
-    rgba(96, 165, 250, 0.18) 60%,
+    rgba(96, 165, 250, 0.20) 38%,
+    rgba(96, 165, 250, 0.65) 50%,
+    rgba(96, 165, 250, 0.20) 62%,
     transparent 100%);
-  filter: blur(1px);
+  filter: blur(1.5px);
   opacity: 0;
-  transform: translateY(-60px);
+  transform: translateY(-80px);
   pointer-events: none;
   z-index: 3;
+  /* Smooth fade when .scanning class is removed (no abrupt pop) */
+  transition: opacity .45s ease;
 }
 /* Subtle blue tint over the whole schema box while scanning */
 .schema.scanning {
@@ -357,38 +359,44 @@ body::-webkit-scrollbar-corner {
 }
 .schema.scanning .snap-scan-line {
   opacity: 1;
-  animation: snapScan 1100ms cubic-bezier(.4,0,.2,1) infinite;
+  animation: snapScan 1700ms cubic-bezier(.55,.1,.45,.9) infinite;
 }
 /* Hide schema content while scanning so the sweep reads clearly */
 .schema.scanning .schema-head,
-.schema.scanning .schema-body { opacity: 0.25; transition: opacity .2s; }
+.schema.scanning .schema-body { opacity: 0.2; transition: opacity .35s ease; }
+.schema:not(.scanning) .schema-head,
+.schema:not(.scanning) .schema-body { transition: opacity .35s ease .1s; }
 
 @keyframes snapScan {
-  0%   { transform: translateY(-60px); }
-  100% { transform: translateY(100%); }
+  0%   { transform: translateY(-80px); }
+  100% { transform: translateY(calc(100% + 20px)); }
 }
 
 /* Skeleton placeholder rows shown while scanning */
 .scan-skeleton {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 9px;
   padding: 14px 16px;
+  transition: opacity .35s ease;
 }
 .scan-skeleton-row {
   height: 14px;
   border-radius: 4px;
   background: linear-gradient(90deg,
     rgba(255,255,255,0.04) 0%,
-    rgba(96,165,250,0.10) 50%,
+    rgba(96,165,250,0.12) 50%,
     rgba(255,255,255,0.04) 100%);
   background-size: 200% 100%;
-  animation: skelShimmer 1.4s ease-in-out infinite;
+  animation: skelShimmer 1.8s ease-in-out infinite;
 }
 .scan-skeleton-row:nth-child(1) { width: 60%; }
 .scan-skeleton-row:nth-child(2) { width: 85%; }
 .scan-skeleton-row:nth-child(3) { width: 45%; }
 .scan-skeleton-row:nth-child(4) { width: 72%; }
+.scan-skeleton-row:nth-child(5) { width: 90%; }
+.scan-skeleton-row:nth-child(6) { width: 55%; }
+.schema:not(.scanning) .scan-skeleton { opacity: 0; }
 @keyframes skelShimmer {
   0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }
