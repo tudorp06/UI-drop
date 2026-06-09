@@ -22,13 +22,13 @@ UIDrop is a Chrome extension that reads any webpage's design system in one click
 
 You open a site you find inspiring, click the UIDrop icon, hit **Snap this page**, and the extension extracts the full design system — colors, fonts, type scale, border radii, spacing tokens, shadows, gradients, and component styles — packaged as a structured brief your AI can act on immediately.
 
-From there, three buttons send the brief straight into **Claude**, **Cursor**, or **ChatGPT (Codex)**, or you can copy it to clipboard and drag the captured screenshot into any AI chat.
+From there, three buttons send the brief straight into **Claude**, **Cursor**, or **ChatGPT (Codex)**, **Gemini**, **Lovable**, **Manus**, or you can copy it to clipboard and drag the captured screenshot into any AI chat.
 
 ## How it works
 
 1. **Snap** any page you're looking at
 2. **Read** the full design system — colors, fonts, tokens, components, gradients
-3. **Send** to Claude, Cursor, or ChatGPT — opens the AI with the brief pre-pasted, or drag the screenshot directly into any chat
+3. **Send** to Claude, Cursor, ChatGPT, Manus, Lovable or even Gemini — opens the AI with the brief pre-pasted, or drag the screenshot directly into any chat
 
 The schema is generated entirely in-browser using deterministic JavaScript heuristics over computed CSS. No AI inference, no external APIs, no servers, no accounts.
 
@@ -49,7 +49,7 @@ Vanilla JavaScript, no frameworks, no build step. Manifest V3.
 
 - `content.js` — runs on the snapped page; walks the DOM via `getComputedStyle` and extracts structural design tokens
 - `popup.js` — receives the tokens, derives the palette and component styles via heuristics, renders the schema
-- `background.js` — handles the screenshot and the cross-tab inject when sending to Claude or ChatGPT
+- `background.js` — handles the screenshot and the cross-tab inject when sending to Claude, ChatGPT, Gemini, Lovable etc
 
 ## Privacy
 
