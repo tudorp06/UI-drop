@@ -192,6 +192,8 @@ function buildDesignSystem(tokens) {
         buttonStyle:     formatButton(c.button, palette),
         cardStyle:       formatCard(c.card, palette, tokens.isDark),
         inputStyle:      formatInput(c.input, palette, tokens.isDark),
+        // Raw component objects — used by the popup's live component previews
+        _raw: { button: c.button || null, card: c.card || null, input: c.input || null, chip: c.chip || null },
         linkStyle:       formatLink(c.link),
         shadowScale:          tokens.shadowScale || [],
         borderColor:          tokens.borderColor || null,
@@ -712,6 +714,208 @@ function buildFinalPrompt(schema) {
     return parts.join('\n');
 }
 
+// ── Color science helpers (popup-local copy; library.js has its own) ─────────
+function pHexToRgb(hex) {
+    if (!hex) return null;
+    const m = String(hex).replace('#','').match(/^([0-9a-f]{6}|[0-9a-f]{3})$/i);
+    if (!m) return null;
+    let h = m[1];
+    if (h.length === 3) h = h.split('').map(c => c + c).join('');
+    return { r: parseInt(h.slice(0,2),16), g: parseInt(h.slice(2,4),16), b: parseInt(h.slice(4,6),16) };
+}
+function pRgbToHex(r,g,b) {
+    const c = n => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2,'0');
+    return '#' + c(r) + c(g) + c(b);
+}
+function pRgbToHsl(r,g,b) {
+    r/=255; g/=255; b/=255;
+    const max = Math.max(r,g,b), min = Math.min(r,g,b);
+    let h, s, l = (max+min)/2;
+    if (max === min) { h = s = 0; }
+    else {
+        const d = max-min;
+        s = l > 0.5 ? d/(2-max-min) : d/(max+min);
+        switch (max) {
+            case r: h = ((g-b)/d + (g<b?6:0)); break;
+            case g: h = ((b-r)/d + 2); break;
+            case b: h = ((r-g)/d + 4); break;
+        }
+        h /= 6;
+    }
+    return { h: h*360, s: s*100, l: l*100 };
+}
+function pHslToRgb(h,s,l) {
+    h/=360; s/=100; l/=100;
+    let r,g,b;
+    if (s === 0) { r=g=b=l; }
+    else {
+        const f = (p,q,t) => { if(t<0)t+=1; if(t>1)t-=1; if(t<1/6)return p+(q-p)*6*t; if(t<1/2)return q; if(t<2/3)return p+(q-p)*(2/3-t)*6; return p; };
+        const q = l < 0.5 ? l*(1+s) : l+s-l*s;
+        const p = 2*l - q;
+        r = f(p,q,h+1/3); g = f(p,q,h); b = f(p,q,h-1/3);
+    }
+    return { r: r*255, g: g*255, b: b*255 };
+}
+function pTonalScale(hex) {
+    const rgb = pHexToRgb(hex);
+    if (!rgb) return [];
+    const hsl = pRgbToHsl(rgb.r, rgb.g, rgb.b);
+    const steps = [
+        { name: '50',  l: 97 }, { name: '100', l: 94 }, { name: '200', l: 86 },
+        { name: '300', l: 77 }, { name: '400', l: 66 }, { name: '500', l: hsl.l },
+        { name: '600', l: Math.max(38, hsl.l - 8) },
+        { name: '700', l: Math.max(30, hsl.l - 18) },
+        { name: '800', l: Math.max(22, hsl.l - 26) },
+        { name: '900', l: Math.max(15, hsl.l - 34) },
+        { name: '950', l: Math.max(8,  hsl.l - 42) },
+    ];
+    return steps.map(s => {
+        const { r, g, b } = pHslToRgb(hsl.h, hsl.s, s.l);
+        return { name: s.name, hex: pRgbToHex(r, g, b) };
+    });
+}
+function pContrastRatio(hex1, hex2) {
+    const lum = hex => {
+        const c = pHexToRgb(hex); if (!c) return 0;
+        const f = v => { v/=255; return v <= 0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055, 2.4); };
+        return 0.2126*f(c.r) + 0.7152*f(c.g) + 0.0722*f(c.b);
+    };
+    const a = lum(hex1), b = lum(hex2);
+    return Math.round(((Math.max(a,b) + 0.05) / (Math.min(a,b) + 0.05)) * 10) / 10;
+}
+function pWcagGrade(ratio) {
+    if (ratio >= 7)   return { grade: 'AAA',  ok: true  };
+    if (ratio >= 4.5) return { grade: 'AA',   ok: true  };
+    if (ratio >= 3)   return { grade: 'AA-L', ok: true  };
+    return                   { grade: 'Fail', ok: false };
+}
+
+// ── COMPONENTS — live rendered previews from the extracted styles ────────────
+function renderComponentPreviews(schema) {
+    const raw = schema._raw || {};
+    const primary = isHex(schema.primaryColor) ? schema.primaryColor : '#3b82f6';
+    const surface = isHex(schema.surfaceColor) ? schema.surfaceColor : (schema.isDark ? '#111' : '#fff');
+    const rows = [];
+
+    // Helper: prop chip strings like the library mock (bg / r / font)
+    const chips = arr => arr.filter(Boolean).map(t =>
+        `<span class="ds-comp-prop">${t}</span>`).join('');
+
+    // BUTTON — render with real extracted styles
+    const b = raw.button;
+    const btnBg     = (b?.bg && b.bg !== 'transparent') ? b.bg : primary;
+    const btnColor  = b?.color || '#fff';
+    const btnRadius = b?.radius || '8px';
+    const btnWeight = b?.fontWeight || '600';
+    rows.push(`
+      <div class="ds-comp-row">
+        <span class="ds-comp-name">Button</span>
+        <div class="ds-comp-demo">
+          <span style="display:inline-flex;align-items:center;background:${btnBg};color:${btnColor};border-radius:${btnRadius};font-weight:${btnWeight};font-size:9.5px;padding:4px 11px;white-space:nowrap;line-height:1;">Get Started</span>
+        </div>
+        <div class="ds-comp-props">${chips([
+            isHex(btnBg) ? `bg: ${btnBg.toUpperCase()}` : null,
+            btnRadius ? `r: ${btnRadius}` : null,
+            btnWeight ? `font: ${btnWeight}` : null,
+        ])}</div>
+      </div>`);
+
+    // CARD
+    const c = raw.card;
+    const cardBg     = c?.bg || (schema.isDark ? 'rgba(255,255,255,0.03)' : '#fff');
+    const cardBorder = c?.border || '1px solid rgba(128,128,128,0.25)';
+    const cardRadius = c?.radius || '12px';
+    rows.push(`
+      <div class="ds-comp-row">
+        <span class="ds-comp-name">Card</span>
+        <div class="ds-comp-demo">
+          <span style="display:inline-flex;align-items:center;background:${cardBg};border:${cardBorder};border-radius:${cardRadius};font-size:9px;color:rgba(128,128,128,0.9);padding:4px 10px;white-space:nowrap;line-height:1;">Content area</span>
+        </div>
+        <div class="ds-comp-props">${chips([
+            cardRadius ? `r: ${cardRadius}` : null,
+            c?.padding ? `p: ${c.padding}` : null,
+            c?.shadow ? 'shadow' : null,
+        ])}</div>
+      </div>`);
+
+    // INPUT
+    const i = raw.input;
+    const inpBg     = i?.bg || (schema.isDark ? 'rgba(255,255,255,0.03)' : '#fff');
+    const inpBorder = i?.border || `1px solid ${primary}66`;
+    const inpRadius = i?.radius || '6px';
+    rows.push(`
+      <div class="ds-comp-row">
+        <span class="ds-comp-name">Input</span>
+        <div class="ds-comp-demo">
+          <span style="display:inline-flex;align-items:center;background:${inpBg};border:${inpBorder};border-radius:${inpRadius};font-size:9px;color:rgba(128,128,128,0.7);padding:4px 10px;white-space:nowrap;line-height:1;">email@…</span>
+        </div>
+        <div class="ds-comp-props">${chips([
+            i?.radius ? `r: ${i.radius}` : null,
+            isHex(primary) ? `focus: ${primary.toUpperCase()}` : null,
+        ])}</div>
+      </div>`);
+
+    const sec = makeDsSection('Components');
+    const wrap = document.createElement('div');
+    wrap.className = 'ds-comp-rows';
+    wrap.innerHTML = rows.join('');
+    sec.appendChild(wrap);
+    schemaBody.appendChild(sec);
+}
+
+// ── TONAL SCALE — 11 steps from primary, click to copy ───────────────────────
+function renderTonalScalePopup(primaryHex) {
+    if (!isHex(primaryHex)) return;
+    const scale = pTonalScale(primaryHex);
+    if (!scale.length) return;
+
+    const sec = makeDsSection('Tonal scale');
+    const row = document.createElement('div');
+    row.className = 'ds-tonal-row';
+    scale.forEach(t => {
+        const step = document.createElement('div');
+        step.className = 'ds-tonal-step';
+        step.title = `${t.hex} · click to copy`;
+        step.innerHTML = `<div class="ds-tonal-sw" style="background:${t.hex}"></div><span class="ds-tonal-name">${t.name}</span>`;
+        step.addEventListener('click', () => {
+            navigator.clipboard.writeText(t.hex).then(() => {
+                step.classList.add('copied');
+                setTimeout(() => step.classList.remove('copied'), 700);
+            });
+        });
+        row.appendChild(step);
+    });
+    sec.appendChild(row);
+    schemaBody.appendChild(sec);
+}
+
+// ── CONTRAST — WCAG 2.x check on the extracted palette ──────────────────────
+function renderContrastPopup(schema) {
+    const surface = isHex(schema.surfaceColor) ? schema.surfaceColor : null;
+    if (!surface) return;
+    const pairs = [
+        isHex(schema.textColor)    ? { fg: schema.textColor,    label: 'text on surface' }    : null,
+        isHex(schema.primaryColor) ? { fg: schema.primaryColor, label: 'primary on surface' } : null,
+        isHex(schema.mutedText)    ? { fg: schema.mutedText,    label: 'muted on surface' }   : null,
+    ].filter(Boolean);
+    if (!pairs.length) return;
+
+    const sec = makeDsSection('Contrast');
+    pairs.forEach(p => {
+        const ratio = pContrastRatio(p.fg, surface);
+        const g = pWcagGrade(ratio);
+        const row = document.createElement('div');
+        row.className = 'ds-wcag-row';
+        row.innerHTML = `
+          <span class="ds-wcag-preview" style="background:${surface};color:${p.fg};">Aa</span>
+          <span class="ds-wcag-label">${p.label}</span>
+          <span class="ds-wcag-ratio">${ratio}:1</span>
+          <span class="ds-wcag-badge ${g.ok ? 'ok' : 'fail'}">${g.grade}</span>`;
+        sec.appendChild(row);
+    });
+    schemaBody.appendChild(sec);
+}
+
 function renderSchema(schema, siteName) {
     schemaBody.innerHTML = '';
 
@@ -764,9 +968,17 @@ function renderSchema(schema, siteName) {
         schemaBody.appendChild(sec);
     }
 
-    // ── MORE — count what's still hidden (components, gradients, etc.) ──
+    // ── COMPONENTS — live previews rendered from extracted styles ──
+    renderComponentPreviews(schema);
+
+    // ── TONAL SCALE — generated from primary ──
+    renderTonalScalePopup(schema.primaryColor);
+
+    // ── CONTRAST — WCAG check on the palette ──
+    renderContrastPopup(schema);
+
+    // ── MORE — count what's still hidden (gradients, link style, etc.) ──
     const extras = [
-        schema.buttonStyle, schema.cardStyle, schema.inputStyle,
         schema.linkStyle, schema.iconStroke,
         Array.isArray(schema.gradients) && schema.gradients.length ? schema.gradients : null,
         schema.elevatedSurface,
