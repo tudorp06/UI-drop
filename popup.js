@@ -19,7 +19,7 @@ let finalPrompt = '';
 let briefPrompt = '';
 let skillMarkdown = '';
 let snappedSiteName = '';
-let formatMode = 'brief';   // 'brief' | 'skill'
+let formatMode = 'brief';   // 'brief' | 'skill' — restored from storage on init
 
 // ── Open the Snap Library — free for everyone, trial gates live inside ──
 btnLibrary.addEventListener('click', () => {
@@ -29,6 +29,18 @@ btnLibrary.addEventListener('click', () => {
 (async function init() {
     document.getElementById('setupView')?.classList.add('hidden');
     document.getElementById('mainView')?.classList.remove('hidden');
+
+    // Restore persisted format preference
+    const { uidropFormatMode } = await chrome.storage.local.get('uidropFormatMode');
+    if (uidropFormatMode === 'skill' || uidropFormatMode === 'brief') {
+        formatMode = uidropFormatMode;
+        document.querySelectorAll('#formatToggle .fmt-opt').forEach(b => {
+            const active = b.dataset.mode === formatMode;
+            b.classList.toggle('fmt-active', active);
+            b.setAttribute('aria-selected', String(active));
+        });
+    }
+
     await restoreLastSnap();
 })();
 
@@ -92,7 +104,10 @@ async function performSnap() {
         });
         dragHint?.classList.remove('hidden');
 
-        const cssResponse = await chrome.tabs.sendMessage(tab.id, { action: 'scrapeCSS' });
+        const cssResponse = await Promise.race([
+            chrome.tabs.sendMessage(tab.id, { action: 'scrapeCSS' }),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Snap timed out — page too complex or unresponsive')), 15000))
+        ]);
         if (!cssResponse?.tokens) throw new Error('Could not read page CSS');
 
         const tokens = cssResponse.tokens;
@@ -144,10 +159,14 @@ async function performSnap() {
         schemaBox.classList.add('hidden');  // hide skeleton on error
 
         const msg = err?.message || '';
-        if (msg.includes('cannot be scripted') || msg.includes('extensions gallery') || msg.includes('chrome://') || msg.includes('Cannot access')) {
+        if (msg.includes('cannot be scripted') || msg.includes('extensions gallery') || msg.includes('chrome://') || msg.includes('Cannot access') || msg.includes('chrome-extension://')) {
             setStatus('error', false);
             snapBtn.innerHTML = snapButtonInnerHTML("Can't snap this page");
             snapBtn.title = "Chrome system pages and the Extensions store can't be snapped. Try on any regular website.";
+        } else if (msg.includes('timed out')) {
+            setStatus('error', false);
+            snapBtn.innerHTML = snapButtonInnerHTML('Timed out');
+            snapBtn.title = 'Page took too long to scrape. Try refreshing and snapping again.';
         } else {
             setStatus('error', false);
             snapBtn.textContent = 'Try again';
@@ -1179,6 +1198,7 @@ document.querySelectorAll('#formatToggle .fmt-opt').forEach(btn => {
         });
         // Swap the active prompt so Send/Copy buttons use the right format
         finalPrompt = (mode === 'skill') ? skillMarkdown : briefPrompt;
+        chrome.storage.local.set({ uidropFormatMode: mode });
     });
 });
 

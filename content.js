@@ -81,12 +81,12 @@ function scrapeDesignTokens() {
   bump(navStyle.color, 3);
   bump(headingStyle.color, 3);
 
-  scrapeInteractiveColors(colorCounts, bump, bumpInteractive);
-  scrapeSvgColors(colorCounts, bump);
-  scrapeSaturatedColors(colorCounts, bump);
+  try { scrapeInteractiveColors(colorCounts, bump, bumpInteractive); } catch (e) { console.warn('UIDrop scraper failed:', e); }
+  try { scrapeSvgColors(colorCounts, bump); } catch (e) { console.warn('UIDrop scraper failed:', e); }
+  try { scrapeSaturatedColors(colorCounts, bump); } catch (e) { console.warn('UIDrop scraper failed:', e); }
 
   // Gradients applied to actual rendered elements (not just CSS rule text)
-  const gradientStops = scrapeUsedGradients();
+  const gradientStops = (() => { try { return scrapeUsedGradients(); } catch (e) { console.warn('UIDrop scraper failed:', e); return []; } })();
 
   // ── COMPONENT SCRAPING ──
   // Buttons: prefer the primary CTA (saturated background) over the first
@@ -134,21 +134,19 @@ function scrapeDesignTokens() {
   });
 
   // ── TYPE SCALE ──
-  // Count font-size frequency across many elements, then pick
-  // hero (largest), body (most common), and a mid-point that exists.
-  const typeScale = deriveTypeScale();
+  const typeScale = (() => { try { return deriveTypeScale(); } catch (e) { console.warn('UIDrop scraper failed:', e); return []; } })();
 
   // ── LINE-HEIGHT (body text "feel" — tight vs breathy) ──
-  const bodyLineHeight = normalizeLineHeight(paraStyle.lineHeight, paraStyle.fontSize);
+  const bodyLineHeight = (() => { try { return normalizeLineHeight(paraStyle.lineHeight, paraStyle.fontSize); } catch { return null; } })();
 
   // ── SHADOW ELEVATION SCALE (depth language) ──
-  const shadowScale = scrapeShadowScale();
+  const shadowScale = (() => { try { return scrapeShadowScale(); } catch (e) { console.warn('UIDrop scraper failed:', e); return []; } })();
 
-  // ── DOMINANT BORDER COLOR (neutral hairlines used across the page) ──
-  const borderColor = scrapeDominantBorderColor();
+  // ── DOMINANT BORDER COLOR ──
+  const borderColor = (() => { try { return scrapeDominantBorderColor(); } catch { return null; } })();
 
-  // ── ICON STROKE WIDTH (sets the whole visual weight of UI iconography) ──
-  const iconStroke = scrapeIconStrokeWidth();
+  // ── ICON STROKE WIDTH ──
+  const iconStroke = (() => { try { return scrapeIconStrokeWidth(); } catch { return null; } })();
 
   // Sort by frequency (most-used first). Downstream code treats earlier
   // colors as more important when picking primary / accent.
@@ -177,52 +175,28 @@ function scrapeDesignTokens() {
   const pageBg = vpTopHex || htmlBg || bodyBgRaw || null;
 
   // ── Deep extraction layers ───────────────────────────────────
-  const cssVars             = scrapeCSSVariables();
-  const typographyHierarchy = scrapeTypographyHierarchy();
-  const motion              = scrapeMotionTokens();
-  const breakpoints         = scrapeBreakpoints();
+  // Each scraper is isolated so one failure doesn't kill the whole snap.
+  const safe = (fn) => { try { return fn(); } catch (e) { console.warn('UIDrop scraper failed:', e); return null; } };
+
+  const cssVars             = safe(scrapeCSSVariables);
+  const typographyHierarchy = safe(scrapeTypographyHierarchy);
+  const motion              = safe(scrapeMotionTokens);
+  const breakpoints         = safe(scrapeBreakpoints) || [];
 
   // ── Extension-exclusive layers ───────────────────────────────
-  // These require live browser access — no static scraper can do them.
+  const layoutGrid          = safe(scrapeLayoutGrid);
+  const spacingScale        = safe(scrapeFullSpacingScale);
+  const focusStyles         = safe(scrapeFocusRing);
+  const hoverBehaviour      = safe(scrapeHoverBehaviour);
+  const pageStructure       = safe(scrapePageStructure);
+  const zIndexScale         = safe(scrapeZIndexScale);
+  const activeStates        = safe(scrapeActiveStates);
+  const responsiveComponents = safe(scrapeResponsiveComponents);
 
-  // Actual rendered layout geometry: max content width + dominant gutter.
-  // Derived from getBoundingClientRect() on containers, not from CSS text.
-  const layoutGrid          = scrapeLayoutGrid();
-
-  // Complete spacing scale from every rendered gap/padding/margin on the
-  // page — clustered into a clean design-system rhythm (e.g. 4/8/12/16/24/32).
-  const spacingScale        = scrapeFullSpacingScale();
-
-  // Focus ring styles captured by programmatically focusing real form
-  // elements and reading their computed outline/shadow AFTER focus —
-  // impossible without a live browser with DOM access.
-  const focusStyles         = scrapeFocusRing();
-
-  // Hover behaviour read from CSS rule text for :hover selectors on
-  // interactive elements — extracts transforms, shadow deltas, opacity changes.
-  const hoverBehaviour      = scrapeHoverBehaviour();
-
-  // Page structure: which section types exist and in what order.
-  const pageStructure       = scrapePageStructure();
-
-  // Z-index stacking layers with semantic roles (nav/dropdown/modal etc.)
-  const zIndexScale         = scrapeZIndexScale();
-
-  // :active state transforms/opacity from CSS rules — completes the
-  // interaction state picture alongside hover and focus.
-  const activeStates        = scrapeActiveStates();
-
-  // How components change inside @media rules at specific breakpoints.
-  // E.g. "button goes full-width at 600px, font-size drops to 14px".
-  const responsiveComponents = scrapeResponsiveComponents();
-
-  // ── Phase 1: depth signals that don't copy the competitor ──
-  // Framework detection (Tailwind / Material / shadcn / etc.) — single string
-  const framework         = detectFramework();
-  // Per-component radius vocabulary — what shape each component uses
-  const radiusVocabulary  = scrapeRadiusVocabulary();
-  // Design rhythm insights — pattern descriptors, not raw values
-  const rhythm            = scrapeRhythm(spacingScale, button?.radius, shadowScale, bodyLineHeight, radiusVocabulary);
+  // ── Phase 1: depth signals ──
+  const framework         = safe(detectFramework);
+  const radiusVocabulary  = safe(scrapeRadiusVocabulary);
+  const rhythm            = safe(() => scrapeRhythm(spacingScale, button?.radius, shadowScale, bodyLineHeight, radiusVocabulary));
 
   return {
     fonts:             uniqueFonts,

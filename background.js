@@ -55,7 +55,9 @@ async function openAndInject({ target, url, prompt, screenshot, skillFile, slug 
   }
 
   await waitForTabComplete(tab.id);
+  // Wait for SPA frameworks to hydrate after tab reports 'complete'
   await new Promise(r => setTimeout(r, 2500));
+
 
   try {
     const [result] = await chrome.scripting.executeScript({
@@ -71,8 +73,13 @@ async function openAndInject({ target, url, prompt, screenshot, skillFile, slug 
 
 function waitForTabComplete(tabId) {
   return new Promise(resolve => {
+    const timeout = setTimeout(() => {
+      chrome.tabs.onUpdated.removeListener(listener);
+      resolve();
+    }, 20000);
     const listener = (id, info) => {
       if (id === tabId && info.status === 'complete') {
+        clearTimeout(timeout);
         chrome.tabs.onUpdated.removeListener(listener);
         resolve();
       }
