@@ -386,7 +386,7 @@ function openDetail(id) {
              </button>
              <button class="detail-export-btn" id="detailExportPoster">
                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5-4 4-2-2-5 5"/></svg>
-               Poster PNG
+               Design System
              </button>
              <button class="detail-export-btn" id="detailExportTailwind">
                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s2-6 8-6 7 4 10 4 4-2 4-2-2 6-8 6-7-4-10-4-4 2-4 2z"/></svg>
@@ -406,29 +406,23 @@ function openDetail(id) {
            </div>
            <div class="detail-send-row">
              <button class="detail-send-btn dsb-claude" id="detailBtnClaude">
-               <div class="dsb-icon"><img src="icons/claude-logo-64.png" class="dsb-logo" alt="Claude"/></div>
+               <div class="dsb-icon"><img src="icons/claude-logo-64.png" class="dsb-logo-fill" alt="Claude"/></div>
                Claude
              </button>
              <button class="detail-send-btn dsb-gemini" id="detailBtnGemini">
-               <div class="dsb-icon" style="background:#fff;border-color:rgba(66,133,244,0.2);overflow:hidden;padding:2px;">
-                 <img src="icons/gemini-logo.png" alt="Gemini" style="width:28px;height:28px;object-fit:contain;display:block;"/>
-               </div>
+               <div class="dsb-icon dsb-icon-white"><img src="icons/gemini-logo.png" class="dsb-logo" alt="Gemini"/></div>
                Gemini
              </button>
              <button class="detail-send-btn dsb-lovable" id="detailBtnLovable">
-               <div class="dsb-icon" style="background:#fff;border-color:rgba(0,0,0,0.1);overflow:hidden;padding:2px;">
-                 <img src="icons/lovable-color.png" alt="Lovable" style="width:28px;height:28px;object-fit:contain;display:block;border-radius:4px;"/>
-               </div>
+               <div class="dsb-icon dsb-icon-white"><img src="icons/lovable-color.png" class="dsb-logo" alt="Lovable" style="border-radius:5px;"/></div>
                Lovable
              </button>
              <button class="detail-send-btn dsb-manus" id="detailBtnManus">
-               <div class="dsb-icon" style="background:#fff;border-color:rgba(0,0,0,0.1);overflow:hidden;padding:4px;">
-                 <img src="icons/manus.png" alt="Manus" style="width:24px;height:24px;object-fit:contain;display:block;border-radius:3px;"/>
-               </div>
+               <div class="dsb-icon dsb-icon-white"><img src="icons/manus.png" class="dsb-logo" alt="Manus" style="border-radius:4px;"/></div>
                Manus
              </button>
              <button class="detail-send-btn dsb-cursor" id="detailBtnCursor">
-               <div class="dsb-icon dsb-icon-dark"><img src="icons/cursor-logo-64.png" class="dsb-logo dsb-logo-sm" alt="Cursor"/></div>
+               <div class="dsb-icon"><img src="icons/cursor-logo-64.png" class="dsb-logo-fill" alt="Cursor"/></div>
                Copy for Cursor
              </button>
              <button class="detail-send-btn dsb-gpt" id="detailBtnCodex">
@@ -512,8 +506,14 @@ function openDetail(id) {
             flashExport('detailExportShadcn', 'Downloaded');
         });
     });
-    document.getElementById('detailExportPoster').addEventListener('click', () => {
-        exportPalettePoster(snap);
+    document.getElementById('detailExportPoster').addEventListener('click', async () => {
+        try {
+            await exportPalettePoster(snap);
+            flashExport('detailExportPoster', 'Downloaded');
+        } catch (err) {
+            console.error('Poster export failed', err);
+            alert('Could not generate the poster. Please try again.');
+        }
     });
 
     // ── Tags ──────────────────────────────────────────────────
@@ -1493,109 +1493,455 @@ function showInsightsModal() {
     });
 }
 
-// ── Palette poster export (Canvas PNG) ───────────────────────
-function exportPalettePoster(snap) {
+// ── Design-system poster export (Canvas PNG) ─────────────────
+// A premium, downloadable "design system at a glance" poster:
+// brand header, palette + tonal ramp, type specimen, shape &
+// live component previews. Rendered at 2x for crisp retina output.
+
+let _uidropLogoImg = null;
+function loadUIDropLogo() {
+    if (_uidropLogoImg) return Promise.resolve(_uidropLogoImg);
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => { _uidropLogoImg = img; resolve(img); };
+        img.onerror = () => resolve(null);
+        img.src = 'icons/icon128.png';
+    });
+}
+
+// Pick black/white text that reads best on a given background hex.
+function readableOn(hex) {
+    if (!isHex(hex)) return '#ffffff';
+    return contrastRatio(hex, '#ffffff') >= contrastRatio(hex, '#0b0d14') ? '#ffffff' : '#0b0d14';
+}
+
+async function exportPalettePoster(snap) {
     const s = snap.schema || {};
-    const colors = [
-        { label:'primary',  hex: s.primaryColor },
-        { label:'accent',   hex: s.accentColor },
-        { label:'surface',  hex: s.surfaceColor },
-        { label:'elevated', hex: s.elevatedSurface },
-        { label:'text',     hex: s.textColor },
-        { label:'muted',    hex: s.mutedText },
-    ].filter(c => isHex(c.hex));
+    if (!isHex(s.primaryColor) && !isHex(s.surfaceColor) && !isHex(s.accentColor)) {
+        alert('No palette data for this snap.'); return;
+    }
 
-    if (!colors.length) { alert('No palette data for this snap.'); return; }
+    // Make sure the web fonts are rendered before we paint to canvas.
+    try {
+        await Promise.all([
+            document.fonts.load('800 64px Author'),
+            document.fonts.load('700 40px Author'),
+            document.fonts.load('700 24px Inter'),
+            document.fonts.load('600 22px Inter'),
+            document.fonts.load('500 20px Inter'),
+            document.fonts.load('400 20px Inter'),
+            document.fonts.load('500 20px "Geist Mono"'),
+            document.fonts.ready,
+        ]);
+    } catch (_) { /* fall back to whatever is available */ }
 
-    const W = 820, H = 400, PAD = 40;
+    const logo = await loadUIDropLogo();
+
+    // ── Canvas setup (logical coords, 2x backing store) ──────────
+    const W = 1080, H = 1350, PAD = 80, scale = 2;
     const canvas = document.createElement('canvas');
-    canvas.width = W; canvas.height = H;
+    canvas.width = W * scale; canvas.height = H * scale;
     const ctx = canvas.getContext('2d');
+    ctx.scale(scale, scale);
+    ctx.textBaseline = 'alphabetic';
 
-    // Background + subtle gradient
-    const bgGrad = ctx.createLinearGradient(0, 0, W, H);
-    bgGrad.addColorStop(0,   '#07090f');
-    bgGrad.addColorStop(1,   '#0d1224');
-    ctx.fillStyle = bgGrad;
+    // ── Palette data ─────────────────────────────────────────────
+    const primary  = isHex(s.primaryColor)    ? s.primaryColor    : '#6366f1';
+    const accent   = isHex(s.accentColor)     ? s.accentColor     : primary;
+    const surface  = isHex(s.surfaceColor)    ? s.surfaceColor    : '#0b0d14';
+    const elevated = isHex(s.elevatedSurface) ? s.elevatedSurface : surface;
+    const textCol  = isHex(s.textColor)       ? s.textColor       : '#e8ebf5';
+    const mutedCol = isHex(s.mutedText)       ? s.mutedText       : '#8a90a8';
+    const borderC  = isHex(s.borderColor)     ? s.borderColor     : null;
+
+    // Brand ink palette (poster chrome, NOT the site palette)
+    const INK   = '#070810';
+    const INK2  = '#0e1020';
+    const HAIR  = 'rgba(150,170,255,0.10)';
+    const TXT   = '#eef1fb';
+    const DIM   = '#9aa2c2';
+    const FAINT = '#5b6188';
+
+    // ── Helpers ──────────────────────────────────────────────────
+    const rr = (x, y, w, h, r) => {
+        const rad = Math.min(r, w / 2, h / 2);
+        ctx.beginPath();
+        ctx.moveTo(x + rad, y);
+        ctx.arcTo(x + w, y,     x + w, y + h, rad);
+        ctx.arcTo(x + w, y + h, x,     y + h, rad);
+        ctx.arcTo(x,     y + h, x,     y,     rad);
+        ctx.arcTo(x,     y,     x + w, y,     rad);
+        ctx.closePath();
+    };
+    // Letter-spaced caps, returns the x where the text ends
+    const spacedCaps = (label, x, yy, track = 3) => {
+        let cx = x;
+        for (const ch of label.toUpperCase()) {
+            ctx.fillText(ch, cx, yy);
+            cx += ctx.measureText(ch).width + track;
+        }
+        return cx - track;
+    };
+    // Editorial section header: "01 — COLORS ────────────"
+    const sectionHead = (num, label, yy) => {
+        ctx.textAlign = 'left';
+        ctx.font = '500 13px "Geist Mono", monospace';
+        ctx.fillStyle = '#6da2ff';
+        ctx.fillText(num, PAD, yy);
+        const numW = ctx.measureText(num).width;
+        ctx.font = '700 13px Inter, sans-serif';
+        ctx.fillStyle = TXT;
+        const endX = spacedCaps(label, PAD + numW + 16, yy, 2.5);
+        ctx.strokeStyle = HAIR; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(endX + 16, yy - 4); ctx.lineTo(W - PAD, yy - 4); ctx.stroke();
+    };
+    // Human-readable hue name from a hex
+    const hueName = (hex) => {
+        const rgb = hexToRgb(hex); if (!rgb) return '';
+        const { h, s, l } = rgbToHsl(rgb.r, rgb.g, rgb.b);
+        if (l >= 96) return 'White';
+        if (l <= 6)  return 'Black';
+        if (s < 8)   return l > 55 ? 'Light gray' : 'Gray';
+        const names = [
+            [15,'Red'],[40,'Orange'],[62,'Yellow'],[85,'Lime'],[160,'Green'],
+            [190,'Teal'],[215,'Sky'],[250,'Blue'],[275,'Indigo'],[300,'Violet'],
+            [330,'Magenta'],[360,'Pink'],
+        ];
+        for (const [max, name] of names) if (h <= max) return name;
+        return 'Red';
+    };
+    // Filmic grain overlay — the detail that makes flat gradients feel like print
+    const addGrain = (alpha = 0.04) => {
+        const t = document.createElement('canvas'); t.width = t.height = 140;
+        const tc = t.getContext('2d');
+        const id = tc.createImageData(140, 140);
+        for (let i = 0; i < id.data.length; i += 4) {
+            const v = (Math.random() * 255) | 0;
+            id.data[i] = id.data[i+1] = id.data[i+2] = v;
+            id.data[i+3] = (Math.random() * 255) | 0;
+        }
+        tc.putImageData(id, 0, 0);
+        const pat = ctx.createPattern(t, 'repeat');
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.globalCompositeOperation = 'overlay';
+        ctx.fillStyle = pat;
+        ctx.fillRect(0, 0, W, H);
+        ctx.restore();
+    };
+
+    // ── Background ───────────────────────────────────────────────
+    const bg = ctx.createLinearGradient(0, 0, W, H);
+    bg.addColorStop(0, INK);
+    bg.addColorStop(1, INK2);
+    ctx.fillStyle = bg;
     ctx.fillRect(0, 0, W, H);
 
-    // Accent glow behind first swatch
-    if (colors[0]) {
-        const glow = ctx.createRadialGradient(PAD + 55, 200, 0, PAD + 55, 200, 180);
-        glow.addColorStop(0,   colors[0].hex + '28');
-        glow.addColorStop(1,   'transparent');
-        ctx.fillStyle = glow;
+    // Ambient glows from the site's primary + accent
+    const glow = (cx, cy, rad, hex, alpha) => {
+        const rgb = hexToRgb(hex); if (!rgb) return;
+        const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, rad);
+        g.addColorStop(0, `rgba(${rgb.r},${rgb.g},${rgb.b},${alpha})`);
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = g;
         ctx.fillRect(0, 0, W, H);
-    }
+    };
+    glow(W * 0.18, H * 0.16, 520, primary, 0.20);
+    glow(W * 0.92, H * 0.30, 460, accent,  0.16);
+    glow(W * 0.80, H * 0.95, 520, primary, 0.10);
 
-    // Site name
-    ctx.font = 'bold 26px system-ui,-apple-system,sans-serif';
-    ctx.fillStyle = '#eef1fb';
-    ctx.fillText(snap.siteName || 'Design Palette', PAD, 54);
-
-    // Date + vibe
-    const date = new Date(snap.timestamp).toLocaleDateString('en-US', { month:'long', day:'numeric', year:'numeric' });
-    const sub  = [date, s.vibe].filter(Boolean).join(' · ');
-    ctx.font = '14px system-ui,-apple-system,sans-serif';
-    ctx.fillStyle = '#7a82a3';
-    ctx.fillText(sub, PAD, 78);
-
-    // Divider
-    ctx.strokeStyle = 'rgba(120,150,230,0.14)';
+    // Fine inner frame
+    ctx.strokeStyle = HAIR;
     ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(PAD, 96); ctx.lineTo(W - PAD, 96); ctx.stroke();
+    rr(24, 24, W - 48, H - 48, 28); ctx.stroke();
 
-    // Swatches
-    const sw = Math.min(110, Math.floor((W - PAD * 2 - (colors.length - 1) * 14) / colors.length));
-    const sh = 130, sy = 120;
-    const totalW = colors.length * sw + (colors.length - 1) * 14;
-    const sx0 = (W - totalW) / 2;
+    let y = PAD + 18;
 
-    colors.forEach((c, i) => {
-        const x = sx0 + i * (sw + 14);
-        // Rounded swatch
-        ctx.beginPath();
-        const r = 12;
-        ctx.moveTo(x + r, sy); ctx.lineTo(x + sw - r, sy);
-        ctx.quadraticCurveTo(x + sw, sy, x + sw, sy + r);
-        ctx.lineTo(x + sw, sy + sh - r);
-        ctx.quadraticCurveTo(x + sw, sy + sh, x + sw - r, sy + sh);
-        ctx.lineTo(x + r, sy + sh);
-        ctx.quadraticCurveTo(x, sy + sh, x, sy + sh - r);
-        ctx.lineTo(x, sy + r);
-        ctx.quadraticCurveTo(x, sy, x + r, sy);
-        ctx.closePath();
-        ctx.fillStyle = c.hex;
-        ctx.fill();
-
-        const cx = x + sw / 2;
-        ctx.textAlign = 'center';
-        ctx.font = '600 10px system-ui,-apple-system,sans-serif';
-        ctx.fillStyle = 'rgba(122,130,163,0.85)';
-        ctx.fillText(c.label.toUpperCase(), cx, sy + sh + 18);
-        ctx.font = '500 12px "Courier New",monospace';
-        ctx.fillStyle = '#aab2d0';
-        ctx.fillText(c.hex.toUpperCase(), cx, sy + sh + 34);
-        ctx.textAlign = 'left';
-    });
-
-    // Font info
-    const fontStr = [s.headingFont, s.bodyFont].filter(Boolean).join(' · ');
-    if (fontStr) {
-        ctx.font = '13px system-ui,-apple-system,sans-serif';
-        ctx.fillStyle = '#4a5068';
-        ctx.fillText(fontStr, PAD, H - 28);
+    // ── Header: brand mark (left) + DESIGN SYSTEM eyebrow (right) ─
+    const logoSz = 46;
+    if (logo) {
+        ctx.save();
+        rr(PAD, y - logoSz + 8, logoSz, logoSz, 12); ctx.clip();
+        ctx.drawImage(logo, PAD, y - logoSz + 8, logoSz, logoSz);
+        ctx.restore();
+        ctx.strokeStyle = HAIR; rr(PAD, y - logoSz + 8, logoSz, logoSz, 12); ctx.stroke();
     }
+    const wmX = PAD + (logo ? logoSz + 16 : 0);
+    ctx.font = '800 26px Author, Inter, sans-serif';
+    ctx.fillStyle = TXT;
+    ctx.fillText('UI', wmX, y - 4);
+    const uiW = ctx.measureText('UI').width;
+    ctx.fillStyle = '#6da2ff';
+    ctx.fillText('Drop', wmX + uiW, y - 4);
 
-    // UIDrop brand
-    ctx.font = 'bold 12px system-ui,-apple-system,sans-serif';
-    ctx.fillStyle = '#4a5068';
     ctx.textAlign = 'right';
-    ctx.fillText('UIDrop', W - PAD, H - 28);
+    eyebrowRight('DESIGN SYSTEM', W - PAD, y - 8);
+    function eyebrowRight(label, xr, yy) {
+        ctx.font = '700 12px Inter, sans-serif';
+        ctx.fillStyle = DIM;
+        const spaced = label.toUpperCase().split('').join(' ');
+        // measure with manual tracking
+        let total = 0;
+        for (const ch of label.toUpperCase()) total += ctx.measureText(ch).width + 3;
+        let cx = xr - total + 3;
+        ctx.textAlign = 'left';
+        for (const ch of label.toUpperCase()) { ctx.fillText(ch, cx, yy); cx += ctx.measureText(ch).width + 3; }
+    }
     ctx.textAlign = 'left';
 
+    y += 36;
+    ctx.strokeStyle = HAIR; ctx.beginPath(); ctx.moveTo(PAD, y); ctx.lineTo(W - PAD, y); ctx.stroke();
+
+    // ── Hero: site name + meta ───────────────────────────────────
+    y += 74;
+    ctx.font = '800 56px Author, Inter, sans-serif';
+    ctx.fillStyle = TXT;
+    const title = snap.siteName || 'Design Palette';
+    // shrink title to fit
+    let tSize = 56;
+    while (tSize > 30) { ctx.font = `800 ${tSize}px Author, Inter, sans-serif`; if (ctx.measureText(title).width <= W - PAD * 2) break; tSize -= 2; }
+    ctx.fillText(title, PAD, y);
+
+    y += 30;
+    const date = new Date(snap.timestamp).toLocaleDateString('en-US', { month:'long', day:'numeric', year:'numeric' });
+    const shapeWord = (() => {
+        const r = s.radius || '';
+        if (/999|pill|full/i.test(r)) return 'pill';
+        const m = r.match(/(\d+)/); const n = m ? +m[1] : null;
+        if (n === 0) return 'sharp';
+        if (n != null && n >= 16) return 'rounded';
+        if (n != null) return 'soft';
+        return null;
+    })();
+    const metaChips = [date, s.vibe, s.isDark === true ? 'dark' : (s.isDark === false ? 'light' : null), shapeWord].filter(Boolean);
+    let mx = PAD;
+    ctx.font = '500 14px Inter, sans-serif';
+    metaChips.forEach((chip, i) => {
+        const w = ctx.measureText(chip).width + 26;
+        rr(mx, y, w, 30, 15);
+        ctx.fillStyle = 'rgba(255,255,255,0.04)'; ctx.fill();
+        ctx.strokeStyle = HAIR; ctx.stroke();
+        ctx.fillStyle = DIM;
+        ctx.fillText(chip, mx + 13, y + 20);
+        mx += w + 10;
+    });
+
+    // ── COLORS ───────────────────────────────────────────────────
+    y += 78;
+    sectionHead('01', 'Colors', y);
+    y += 30;
+
+    // Two hero tiles: primary larger than accent (asymmetric, not a 50/50 grid)
+    const heroGap = 20;
+    const heroTotal = W - PAD * 2 - heroGap;
+    const heroPrimaryW = Math.round(heroTotal * 0.58);
+    const heroAccentW  = heroTotal - heroPrimaryW;
+    const heroH = 150;
+    const heroTile = (x, w, hex, label) => {
+        const heroW = w;
+        rr(x, y, heroW, heroH, 18);
+        ctx.fillStyle = hex; ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth = 1; ctx.stroke();
+        const ink = readableOn(hex);
+        ctx.fillStyle = ink;
+        ctx.font = '700 13px Inter, sans-serif';
+        ctx.globalAlpha = 0.7;
+        ctx.fillText(label.toUpperCase(), x + 20, y + 30);
+        ctx.globalAlpha = 1;
+        // hue name, set in the body of the tile
+        const hn = hueName(hex);
+        if (hn) {
+            ctx.font = '600 18px Inter, sans-serif';
+            ctx.globalAlpha = 0.9;
+            ctx.fillText(hn, x + 20, y + heroH - 52);
+            ctx.globalAlpha = 1;
+        }
+        ctx.font = '600 26px "Geist Mono", monospace';
+        ctx.fillText(hex.toUpperCase(), x + 20, y + heroH - 24);
+        // contrast badge
+        const cr = contrastRatio(hex, ink);
+        const grade = wcagGrade(cr).grade;
+        ctx.font = '600 11px Inter, sans-serif';
+        const bw = ctx.measureText(`Aa ${grade}`).width + 20;
+        rr(x + heroW - bw - 16, y + 18, bw, 24, 12);
+        ctx.fillStyle = ink === '#ffffff' ? 'rgba(0,0,0,0.22)' : 'rgba(255,255,255,0.25)'; ctx.fill();
+        ctx.fillStyle = ink;
+        ctx.fillText(`Aa ${grade}`, x + heroW - bw - 6, y + 34);
+    };
+    heroTile(PAD, heroPrimaryW, primary, 'Primary');
+    heroTile(PAD + heroPrimaryW + heroGap, heroAccentW, accent, 'Accent');
+    y += heroH + 22;
+
+    // Tonal ramp from primary
+    const ramp = generateTonalScale(primary);
+    if (ramp.length) {
+        const rampH = 44;
+        const segW = (W - PAD * 2) / ramp.length;
+        ramp.forEach((stp, i) => {
+            const x = PAD + i * segW;
+            const first = i === 0, last = i === ramp.length - 1;
+            ctx.save();
+            rr(PAD, y, W - PAD * 2, rampH, 12); ctx.clip();
+            ctx.fillStyle = stp.hex;
+            ctx.fillRect(x, y, segW + 1, rampH);
+            ctx.restore();
+        });
+        ctx.strokeStyle = 'rgba(255,255,255,0.06)'; rr(PAD, y, W - PAD * 2, rampH, 12); ctx.stroke();
+        // Step labels under the ends + the mid (500) — like a real scale
+        ctx.font = '500 10px "Geist Mono", monospace';
+        ctx.fillStyle = FAINT;
+        const markIdx = [0, 5, ramp.length - 1];
+        markIdx.forEach(idx => {
+            const lx = PAD + idx * segW + segW / 2;
+            const lbl = ramp[idx].name;
+            ctx.textAlign = 'center';
+            ctx.fillText(lbl, lx, y + rampH + 18);
+        });
+        ctx.textAlign = 'left';
+        y += rampH + 36;
+    }
+
+    // Secondary palette — one continuous swatch card with the labels
+    // set INSIDE each band (brand-guideline style, not a grid of tiles).
+    const chips = [
+        { label:'surface',  hex: surface  },
+        { label:'elevated', hex: elevated },
+        { label:'text',     hex: textCol  },
+        { label:'muted',    hex: mutedCol },
+    ];
+    if (borderC) chips.push({ label:'border', hex: borderC });
+    const barH = 112, barW = W - PAD * 2;
+    // proportional widths — give the foundational colors a touch more room
+    const weights = chips.map(c => (c.label === 'surface' ? 1.35 : c.label === 'muted' || c.label === 'border' ? 0.8 : 1));
+    const wSum = weights.reduce((a, b) => a + b, 0);
+    ctx.save();
+    rr(PAD, y, barW, barH, 16); ctx.clip();
+    let bx = PAD;
+    chips.forEach((c, i) => {
+        const bw = (weights[i] / wSum) * barW;
+        ctx.fillStyle = c.hex;
+        ctx.fillRect(bx, y, bw + 1, barH);
+        const ink = readableOn(c.hex);
+        ctx.fillStyle = ink;
+        ctx.globalAlpha = 0.62;
+        ctx.font = '700 10px Inter, sans-serif';
+        spacedCaps(c.label, bx + 16, y + barH - 26, 1.5);
+        ctx.globalAlpha = 1;
+        ctx.font = '600 13px "Geist Mono", monospace';
+        ctx.fillText(c.hex.toUpperCase(), bx + 16, y + barH - 12);
+        // hairline seam between bands
+        if (i > 0) { ctx.strokeStyle = 'rgba(0,0,0,0.16)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(bx, y); ctx.lineTo(bx, y + barH); ctx.stroke(); }
+        bx += bw;
+    });
+    ctx.restore();
+    ctx.strokeStyle = 'rgba(255,255,255,0.07)'; rr(PAD, y, barW, barH, 16); ctx.stroke();
+    y += barH + 50;
+
+    // ── TYPOGRAPHY ───────────────────────────────────────────────
+    sectionHead('02', 'Typography', y);
+    y += 34;
+    const headFam = (s.headingFont || 'Inter').split(/[\s,]+/).filter(p => !/^\d/.test(p) && !/^\//.test(p)).slice(0,2).join(' ') || 'Inter';
+    const bodyFam = (s.bodyFont || 'Inter').split(/[\s,]+/).filter(p => !/^\d/.test(p) && !/^\//.test(p))[0] || 'Inter';
+
+    // Specimen "Ag"
+    ctx.font = '800 92px Author, Inter, sans-serif';
+    ctx.fillStyle = TXT;
+    ctx.fillText('Ag', PAD, y + 66);
+    const agW = ctx.measureText('Ag').width;
+    // font names beside specimen
+    const fnX = PAD + agW + 36;
+    ctx.font = '700 22px Inter, sans-serif';
+    ctx.fillStyle = TXT;
+    ctx.fillText(headFam, fnX, y + 26);
+    ctx.font = '500 13px Inter, sans-serif';
+    ctx.fillStyle = DIM;
+    ctx.fillText('Heading', fnX, y + 46);
+    ctx.font = '500 18px Inter, sans-serif';
+    ctx.fillStyle = TXT;
+    ctx.fillText(bodyFam, fnX, y + 76);
+    ctx.font = '500 13px Inter, sans-serif';
+    ctx.fillStyle = DIM;
+    ctx.fillText('Body', fnX, y + 96);
+
+    // Type scale row
+    const scaleNums = (s.typeScale ? [...s.typeScale.matchAll(/(\d{2,3})/g)].map(m => +m[1]) : [])
+        .filter(n => n >= 11 && n <= 96);
+    const scaleSet = [...new Set(scaleNums)].sort((a,b) => b - a).slice(0, 7);
+    if (scaleSet.length) {
+        let sx = PAD;
+        const baseY = y + 150;
+        scaleSet.forEach((n, i) => {
+            const px = Math.max(13, Math.min(40, n * 0.5));
+            ctx.font = `600 ${px}px Inter, sans-serif`;
+            ctx.fillStyle = i === 0 ? TXT : DIM;
+            ctx.fillText(String(n), sx, baseY);
+            sx += ctx.measureText(String(n)).width + 22;
+        });
+    }
+    y += 188;
+
+    // ── SHAPE & COMPONENTS ───────────────────────────────────────
+    sectionHead('03', 'Shape & Components', y);
+    y += 32;
+
+    // Radius samples
+    const radNums = s.radius ? [...new Set([...s.radius.matchAll(/(\d{1,3})/g)].map(m => +m[1]))].filter(n => n <= 40).slice(0,3) : [];
+    const rads = radNums.length ? radNums : [8, 12, 16];
+    let rx = PAD;
+    const rsz = 56;
+    rads.forEach(rn => {
+        rr(rx, y, rsz, rsz, Math.min(rn, rsz/2));
+        ctx.fillStyle = 'rgba(255,255,255,0.04)'; ctx.fill();
+        ctx.strokeStyle = primary; ctx.lineWidth = 2; ctx.stroke();
+        ctx.fillStyle = DIM; ctx.font = '500 11px "Geist Mono", monospace';
+        ctx.fillText(rn + 'px', rx + 2, y + rsz + 18);
+        rx += rsz + 22;
+    });
+
+    // Live button preview (uses real primary + radius)
+    const btnRad = Math.min(rads[1] || 12, 22);
+    const btnLabel = 'Get started';
+    ctx.font = '700 15px Inter, sans-serif';
+    const btnW = ctx.measureText(btnLabel).width + 56;
+    const btnH = 50;
+    const btnX = rx + 24, btnY = y + (rsz - btnH) / 2;
+    rr(btnX, btnY, btnW, btnH, btnRad);
+    ctx.fillStyle = primary; ctx.fill();
+    ctx.fillStyle = readableOn(primary);
+    ctx.fillText(btnLabel, btnX + 28, btnY + 31);
+
+    // Secondary (outline) button
+    const sbX = btnX + btnW + 16;
+    rr(sbX, btnY, btnW, btnH, btnRad);
+    ctx.fillStyle = 'rgba(255,255,255,0.03)'; ctx.fill();
+    ctx.strokeStyle = borderC || 'rgba(255,255,255,0.18)'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.fillStyle = TXT;
+    ctx.fillText('Learn more', sbX + 28, btnY + 31);
+
+    y += rsz + 60;
+
+    // ── Footer ───────────────────────────────────────────────────
+    const fy = H - PAD + 6;
+    ctx.strokeStyle = HAIR; ctx.beginPath(); ctx.moveTo(PAD, fy - 34); ctx.lineTo(W - PAD, fy - 34); ctx.stroke();
+    if (logo) {
+        ctx.save(); rr(PAD, fy - 22, 22, 22, 6); ctx.clip();
+        ctx.drawImage(logo, PAD, fy - 22, 22, 22); ctx.restore();
+    }
+    ctx.font = '600 13px Inter, sans-serif';
+    ctx.fillStyle = DIM;
+    ctx.fillText('Generated with UIDrop', PAD + (logo ? 32 : 0), fy - 5);
+    ctx.textAlign = 'right';
+    ctx.font = '500 13px "Geist Mono", monospace';
+    ctx.fillStyle = FAINT;
+    ctx.fillText('uidrop.app', W - PAD, fy - 5);
+    ctx.textAlign = 'left';
+
+    // ── Grain pass (over everything, last) ───────────────────────
+    addGrain(0.045);
+
+    // ── Export ───────────────────────────────────────────────────
     const a = document.createElement('a');
-    a.download = `${(snap.siteName || 'palette').replace(/[^a-z0-9]/gi,'-').toLowerCase()}-palette.png`;
+    a.download = `${(snap.siteName || 'design-system').replace(/[^a-z0-9]/gi,'-').toLowerCase()}-design-system.png`;
     a.href = canvas.toDataURL('image/png');
     a.click();
 }

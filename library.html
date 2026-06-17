@@ -711,8 +711,8 @@ body.is-pro .trial-bar { display:none !important; }
   transition:color .15s; flex-shrink:0;
 }
 .cv-back:hover { color:var(--text); }
-.cv-title { font-family:var(--font-b); font-size:18px; font-weight:700; letter-spacing:-.3px; color:var(--text); }
-.cv-subtitle { font-size:12.5px; color:var(--faint); margin-left:auto; }
+.cv-title { font-family:var(--font-b); font-size:18px; font-weight:700; letter-spacing:-.3px; color:var(--text); flex:1; text-align:center; }
+.cv-subtitle { font-size:12.5px; color:var(--faint); flex-shrink:0; }
 
 /* Two-column compare panels */
 .cv-cols { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
@@ -786,6 +786,7 @@ body.is-pro .trial-bar { display:none !important; }
 
 #detailPanel .cv-panel {
   max-width: 780px;
+  margin: 0 auto;
 }
 
 #detailPanel .cv-panel-thumb {
@@ -804,7 +805,7 @@ body.is-pro .trial-bar { display:none !important; }
 
 /* ── Detail actions area ── */
 .detail-actions {
-  max-width:780px; padding:20px 0 4px;
+  max-width:780px; margin:0 auto; padding:20px 0 4px;
 }
 
 /* Export row */
@@ -875,14 +876,37 @@ body.is-pro .trial-bar { display:none !important; }
 .dsb-manus:hover   { border-color:rgba(99,102,241,.4); background:rgba(99,102,241,.07); color:#a5b4fc; }
 
 .dsb-icon {
-  width:32px; height:32px; border-radius:8px; border:1px solid var(--line-2);
+  width:40px; height:40px; border-radius:11px; border:1px solid var(--line-2);
   display:flex; align-items:center; justify-content:center; overflow:hidden;
-  background:rgba(255,255,255,.04);
+  background:linear-gradient(160deg, rgba(255,255,255,.07), rgba(255,255,255,.02));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.07), 0 2px 8px rgba(0,0,0,.25);
+  transition: box-shadow .18s ease, transform .18s ease;
 }
-.dsb-icon-dark  { background:#16182a !important; border-color:rgba(255,255,255,.08) !important; }
+.dsb-icon img, .dsb-icon svg { transition: filter .18s ease, transform .18s ease; }
+.detail-send-btn:hover .dsb-icon { transform: translateY(-1px); }
+.dsb-icon-dark  { background:#15172a !important; border-color:rgba(255,255,255,.1) !important; }
 .dsb-icon-white { background:#fff !important; border-color:rgba(124,91,255,.3) !important; }
-.dsb-logo     { width:24px; height:24px; object-fit:contain; display:block; }
-.dsb-logo-sm  { width:20px; height:20px; }
+/* Logos render true-to-size, never stretched */
+.dsb-logo     { width:26px; height:26px; object-fit:contain; display:block; }
+.dsb-logo-sm  { width:24px; height:24px; }
+/* Full-bleed branded square logos (Claude, Cursor) — fill the tile, round with it */
+.dsb-logo-fill { width:100%; height:100%; object-fit:cover; display:block; border-radius:inherit; }
+
+/* Per-brand glow — subtle at rest, blooms on hover */
+.dsb-claude  .dsb-icon { box-shadow: inset 0 1px 0 rgba(255,255,255,.07), 0 0 0 1px rgba(205,115,65,.18), 0 4px 14px rgba(205,115,65,.14); }
+.dsb-cursor  .dsb-icon { box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 0 0 1px rgba(180,180,200,.16), 0 4px 14px rgba(120,120,150,.16); }
+.dsb-gpt     .dsb-icon { box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 0 0 1px rgba(16,163,127,.22), 0 4px 14px rgba(16,163,127,.18); }
+.dsb-gemini  .dsb-icon { box-shadow: 0 0 0 1px rgba(66,133,244,.22), 0 4px 14px rgba(66,133,244,.16); }
+.dsb-lovable .dsb-icon { box-shadow: 0 0 0 1px rgba(255,75,110,.22), 0 4px 14px rgba(255,75,110,.16); }
+.dsb-manus   .dsb-icon { box-shadow: 0 0 0 1px rgba(99,102,241,.22), 0 4px 14px rgba(99,102,241,.16); }
+
+.dsb-claude:hover  .dsb-icon { box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 0 0 1px rgba(205,115,65,.5), 0 6px 20px rgba(205,115,65,.32); }
+.dsb-cursor:hover  .dsb-icon { box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 0 0 1px rgba(180,180,200,.4), 0 6px 20px rgba(140,140,170,.3); }
+.dsb-gpt:hover     .dsb-icon { box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 0 0 1px rgba(16,163,127,.55), 0 6px 22px rgba(16,163,127,.4); }
+.dsb-gemini:hover  .dsb-icon { box-shadow: 0 0 0 1px rgba(66,133,244,.5), 0 6px 22px rgba(66,133,244,.4); }
+.dsb-lovable:hover .dsb-icon { box-shadow: 0 0 0 1px rgba(255,75,110,.5), 0 6px 22px rgba(255,75,110,.4); }
+.dsb-manus:hover   .dsb-icon { box-shadow: 0 0 0 1px rgba(99,102,241,.5), 0 6px 22px rgba(99,102,241,.4); }
+.detail-send-btn:hover .dsb-logo { filter: drop-shadow(0 2px 6px rgba(0,0,0,.35)); }
 
 /* Copy brief button — neutral secondary, no rainbow */
 .detail-copy-btn {

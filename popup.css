@@ -27,7 +27,8 @@
 }
 
 html, body {
-  width: 340px;
+  width: 380px;
+  margin: 0;
   background: var(--bg-1);
   font-family: 'Switzer', system-ui, sans-serif;
   color: var(--text);
@@ -72,12 +73,14 @@ body::-webkit-scrollbar-corner {
 }
 
 .popup {
-  width: 340px;
+  width: 380px;
   background:
     radial-gradient(120% 60% at 50% -10%, rgba(59, 130, 246, 0.12), transparent 60%),
     radial-gradient(80% 40% at 110% 110%, rgba(59, 130, 246, 0.08), transparent 60%),
     var(--bg-1);
-  border-radius: 16px;
+  /* No border-radius: a browser popup is a square window, so rounding
+     the inner element just exposes the white window behind the corners. */
+  border-radius: 0;
   overflow: hidden;
 }
 
@@ -1306,12 +1309,12 @@ body::-webkit-scrollbar-corner {
 
 .footer-mark {
   font-family: 'Author', 'Switzer', serif;
-  font-weight: 700;
+  font-weight: 800;
   font-size: 13px;
   letter-spacing: -0.4px;
-  background: linear-gradient(135deg, #3b82f6 0%, #3b82f6 50%, #3b82f6 100%);
-  -webkit-background-clip: text;
-          background-clip: text;
-  -webkit-text-fill-color: transparent;
-  opacity: 0.85;
+  color: #f4f7ff;
+}
+.footer-mark span {
+  color: #60a5fa;
+  text-shadow: 0 0 16px rgba(59, 130, 246, 0.45);
 }
